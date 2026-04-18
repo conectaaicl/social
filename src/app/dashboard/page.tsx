@@ -75,7 +75,7 @@ export default async function DashboardPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-gray-100">
-          Bienvenido, {session?.user?.name?.split(" ")[0]} 👋
+          Bienvenido{session?.user?.name ? `, ${session.user.name.split(" ")[0]}` : ""} 👋
         </h1>
         <p className="text-gray-500 mt-1">
           Aquí tienes un resumen de tu actividad en redes sociales

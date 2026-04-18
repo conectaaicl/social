@@ -167,8 +167,8 @@ TIPO DE CONTENIDO: ${CONTENT_TYPE_INSTRUCTIONS[contentType] ?? contentType}
 Genera:
 1. "caption": El texto del post (en tono ${brandVoice.tone}, en ${brandVoice.language}). Incluye llamada a la acción. Para STORY máx 80 palabras.
 2. "hashtags": String con 20-25 hashtags relevantes separados por espacios (mezcla populares y de nicho).
-3. "imagePrompt": Prompt en inglés para IA generadora de imágenes (fal.ai/Flux). Muy descriptivo, fotorrealista, especifica: iluminación, ángulo, estilo, colores, composición. Para STORY/REEL debe ser formato vertical 9:16.
-4. "videoPrompt": Descripción del concepto de video (movimiento, escenas, ritmo) si el post es REEL o STORY de video.
+3. "imagePrompt": Prompt en INGLÉS para Flux Pro (IA generadora de imágenes de calidad comercial). DEBE ser extremadamente detallado y profesional. Incluir obligatoriamente: tipo de fotografía (editorial/product/lifestyle/architecture), iluminación específica (golden hour/studio softbox/natural window light/etc), composición (rule of thirds/symmetry/close-up/wide shot), paleta de colores, texturas, materiales, atmósfera, estilo visual (luxury/minimalist/warm/modern/etc), ángulo de cámara y profundidad de campo. Para STORY/REEL especifica "vertical portrait composition 9:16". Mínimo 60 palabras.
+4. "videoPrompt": Para REEL: describe la secuencia de movimiento de cámara (slow dolly in, parallax, orbital shot), transiciones, ritmo visual y mood. Para otros tipos: campo vacío "".
 
 Responde ÚNICAMENTE con el JSON, sin texto adicional.`
 
