@@ -17,6 +17,7 @@ import {
   Lightbulb,
   MessageCircle,
   Crown,
+  Megaphone,
 } from "lucide-react"
 import { clsx } from "clsx"
 
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/dashboard/media", label: "Media", icon: FileImage },
   { href: "/dashboard/accounts", label: "Cuentas", icon: Instagram },
   { href: "/dashboard/brand", label: "Mi Marca", icon: Palette },
+  { href: "/dashboard/ads", label: "Google Ads", icon: Megaphone },
   { href: "/dashboard/settings", label: "Configuración", icon: Settings },
 ]
 

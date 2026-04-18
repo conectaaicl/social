@@ -88,6 +88,7 @@ model Tenant {
   mediaLibrary    MediaItem[]
   calendar        CalendarConfig?
   postComments    PostComment[]
+  adCampaigns     AdCampaign[]
 
   @@map("tenants")
 }
@@ -196,6 +197,7 @@ model Post {
   socialAccountId String?
 
   postComments    PostComment[]
+  adCampaigns     AdCampaign[]
 
   @@map("posts")
 }
@@ -240,6 +242,40 @@ model MediaItem {
   tenantId    String
 
   @@map("media_items")
+}
+
+// ─── Google Ads Campaigns ───────────────────────────────
+
+model AdCampaign {
+  id              String         @id @default(cuid())
+  name            String
+  status          AdStatus       @default(DRAFT)
+  objective       String         // AWARENESS, TRAFFIC, CONVERSIONS
+  budget          Float          // diario en CLP
+  startDate       DateTime
+  endDate         DateTime?
+  targetUrl       String
+  headlines       String[]       // hasta 15 titulos (max 30 chars c/u)
+  descriptions    String[]       // hasta 4 descripciones (max 90 chars c/u)
+  keywords        String[]
+  googleCampaignId String?       // ID asignado por Google Ads API
+  googleAdGroupId  String?
+  googleAdId       String?
+  impressions     Int?
+  clicks          Int?
+  spend           Float?         // gasto real en CLP
+  conversions     Int?
+
+  post            Post?          @relation(fields: [postId], references: [id])
+  postId          String?
+
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  tenantId        String
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@map("ad_campaigns")
 }
 
 // ─── Enums ──────────────────────────────────────────────
@@ -293,4 +329,13 @@ enum MediaSource {
   AI_GENERATED
   UPLOADED
   STOCK
+}
+
+enum AdStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  PAUSED
+  ENDED
+  REJECTED
 }
