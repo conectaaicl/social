@@ -87,6 +87,7 @@ model Tenant {
   posts           Post[]
   mediaLibrary    MediaItem[]
   calendar        CalendarConfig?
+  postComments    PostComment[]
 
   @@map("tenants")
 }
@@ -126,6 +127,10 @@ model BrandVoice {
   targetAudience String
   language      String   @default("es-CL")
   customPrompt  String?  // prompt adicional personalizado
+  brandColors   String[] @default([])  // colores hex del branding
+  competitorHandles String[] @default([])  // handles de competidores a monitorear
+  autoReply     Boolean  @default(false)
+  autoReplyTone String?  // profesional, amigable, entusiasta
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -143,6 +148,7 @@ model CalendarConfig {
   scheduleSlots   Json     // [{time: "09:00", type: "feed"}, {time: "13:00", type: "story"}, ...]
   contentMix      Json     // {producto: 30, tip: 25, proyecto: 25, promo: 20}
   autoPublish     Boolean  @default(true)
+  autoReplyComments Boolean @default(false)
   timezone        String   @default("America/Santiago")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -189,7 +195,31 @@ model Post {
   socialAccount   SocialAccount? @relation(fields: [socialAccountId], references: [id])
   socialAccountId String?
 
+  postComments    PostComment[]
+
   @@map("posts")
+}
+
+// ─── Comments ───────────────────────────────────────────
+
+model PostComment {
+  id              String    @id @default(cuid())
+  metaCommentId   String    @unique
+  username        String
+  text            String
+  sentiment       String?   // positive, neutral, negative
+  replied         Boolean   @default(false)
+  replyText       String?
+  repliedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  post            Post      @relation(fields: [postId], references: [id])
+  postId          String
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  tenantId        String
+
+  @@map("post_comments")
 }
 
 // ─── Media Library ──────────────────────────────────────

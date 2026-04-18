@@ -194,3 +194,125 @@ Responde ÚNICAMENTE con el JSON, sin texto adicional.`
     }
   }
 }
+
+export async function generateCommentReply(params: {
+  brandVoice: { tone: string; description: string; language: string; autoReplyTone?: string | null }
+  commentText: string
+  postCaption: string
+}): Promise<string> {
+  const { brandVoice, commentText, postCaption } = params
+  const tone = brandVoice.autoReplyTone ?? brandVoice.tone
+
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 200,
+    system: `Eres el community manager de una marca. Respondes comentarios de Instagram/Facebook de forma ${tone}. Respondes SOLO el texto de la respuesta, sin comillas, sin explicaciones. Máximo 2 oraciones. Idioma: ${brandVoice.language}.`,
+    messages: [{
+      role: "user",
+      content: `Post: "${postCaption.slice(0, 100)}"\nComentario de @usuario: "${commentText}"\n\nEscribe UNA respuesta breve y ${tone}.`,
+    }],
+  })
+
+  const text = message.content[0].type === "text" ? message.content[0].text : ""
+  return text.trim().replace(/^["']|["']$/g, "")
+}
+
+export async function generateContentSuggestions(params: {
+  brandVoice: { industry: string; description: string; tone: string; products: string[]; keywords: string[] }
+  analytics: {
+    topPostTypes: string[]
+    bestEngagementDay: string
+    avgReach: number
+    totalPosts: number
+  }
+}): Promise<Array<{ title: string; type: string; contentType: string; why: string; hook: string }>> {
+  const { brandVoice, analytics } = params
+
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 1500,
+    system: `Eres un estratega de contenido experto en redes sociales latinoamericanas. Analizas datos de rendimiento y generas ideas de contenido accionables. Respondes SOLO JSON válido.`,
+    messages: [{
+      role: "user",
+      content: `Analiza el rendimiento y sugiere 6 ideas de contenido para:
+Negocio: ${brandVoice.industry} — ${brandVoice.description}
+Productos: ${brandVoice.products.join(", ")}
+Keywords: ${brandVoice.keywords.join(", ")}
+
+Datos de analytics:
+- Tipos de post más exitosos: ${analytics.topPostTypes.join(", ")}
+- Mejor día de engagement: ${analytics.bestEngagementDay}
+- Alcance promedio: ${analytics.avgReach}
+- Total posts publicados: ${analytics.totalPosts}
+
+Responde SOLO este JSON:
+{
+  "suggestions": [
+    {
+      "title": "Título de la idea",
+      "type": "FEED|STORY|REEL|CAROUSEL",
+      "contentType": "PRODUCTO|PROYECTO|TIP|PROMO",
+      "why": "Por qué este contenido funcionará bien (1 oración con datos)",
+      "hook": "El hook o primera línea del caption (máx 15 palabras)"
+    }
+  ]
+}`,
+    }],
+  })
+
+  const text = message.content[0].type === "text" ? message.content[0].text : ""
+  try {
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error("no JSON")
+    const parsed = JSON.parse(match[0])
+    return parsed.suggestions ?? []
+  } catch {
+    return []
+  }
+}
+
+export async function analyzeCompetitor(params: {
+  competitorHandle: string
+  topPosts: Array<{ caption?: string; like_count?: number; comments_count?: number; media_type?: string }>
+  brandVoice: { industry: string; products: string[] }
+}): Promise<{ strengths: string[]; opportunities: string[]; contentIdeas: string[]; summary: string }> {
+  const { competitorHandle, topPosts, brandVoice } = params
+
+  const postsDesc = topPosts.slice(0, 10).map((p, i) =>
+    `Post ${i + 1}: ${p.media_type ?? "IMAGE"}, likes: ${p.like_count ?? 0}, comentarios: ${p.comments_count ?? 0}, caption: "${(p.caption ?? "").slice(0, 80)}"`
+  ).join("\n")
+
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 1000,
+    system: `Eres un analista de marketing digital experto en benchmarking competitivo para Instagram. Respondes SOLO JSON válido.`,
+    messages: [{
+      role: "user",
+      content: `Analiza los top posts de @${competitorHandle} para un negocio de ${brandVoice.industry}:
+
+${postsDesc}
+
+Identifica:
+1. Qué hace bien (3 fortalezas)
+2. Oportunidades de diferenciación (3 puntos)
+3. Ideas de contenido para superar al competidor (3 ideas)
+
+Responde SOLO este JSON:
+{
+  "strengths": ["fortaleza1", "fortaleza2", "fortaleza3"],
+  "opportunities": ["oportunidad1", "oportunidad2", "oportunidad3"],
+  "contentIdeas": ["idea1", "idea2", "idea3"],
+  "summary": "Resumen ejecutivo en 2 oraciones"
+}`,
+    }],
+  })
+
+  const text = message.content[0].type === "text" ? message.content[0].text : ""
+  try {
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error("no JSON")
+    return JSON.parse(match[0])
+  } catch {
+    return { strengths: [], opportunities: [], contentIdeas: [], summary: "Error al analizar." }
+  }
+}

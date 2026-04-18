@@ -169,3 +169,38 @@ export async function getMediaInsights(mediaId: string, accessToken: string) {
     return { reach: 0, likes: 0, comments: 0 }
   }
 }
+
+export async function getPostComments(mediaId: string, accessToken: string) {
+  try {
+    const url = `${META_BASE}/${mediaId}/comments?fields=id,text,username,timestamp&access_token=${accessToken}`
+    const data = await metaFetch(url)
+    return (data.data ?? []) as Array<{ id: string; text: string; username: string; timestamp: string }>
+  } catch {
+    return []
+  }
+}
+
+export async function replyToComment(commentId: string, accessToken: string, message: string): Promise<string> {
+  const body = new URLSearchParams({ message, access_token: accessToken })
+  const data = await metaFetch(`${META_BASE}/${commentId}/replies`, { method: "POST", body })
+  return data.id
+}
+
+export async function getHashtagTopPosts(hashtag: string, igUserId: string, accessToken: string) {
+  try {
+    // Search hashtag ID
+    const hashtagData = await metaFetch(
+      `${META_BASE}/ig_hashtag_search?user_id=${igUserId}&q=${encodeURIComponent(hashtag)}&access_token=${accessToken}`
+    )
+    const hashtagId = hashtagData.data?.[0]?.id
+    if (!hashtagId) return []
+
+    // Get top media
+    const media = await metaFetch(
+      `${META_BASE}/${hashtagId}/top_media?user_id=${igUserId}&fields=id,caption,media_type,like_count,comments_count,timestamp&access_token=${accessToken}`
+    )
+    return media.data ?? []
+  } catch {
+    return []
+  }
+}

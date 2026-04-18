@@ -14,6 +14,9 @@ import {
   BarChart3,
   Zap,
   FileImage,
+  Lightbulb,
+  MessageCircle,
+  Crown,
 } from "lucide-react"
 import { clsx } from "clsx"
 
@@ -22,16 +25,21 @@ const navItems = [
   { href: "/dashboard/calendar", label: "Calendario", icon: Calendar },
   { href: "/dashboard/posts", label: "Posts", icon: Image },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/insights", label: "Insights IA", icon: Lightbulb },
+  { href: "/dashboard/comments", label: "Comentarios", icon: MessageCircle },
   { href: "/dashboard/media", label: "Media", icon: FileImage },
   { href: "/dashboard/accounts", label: "Cuentas", icon: Instagram },
   { href: "/dashboard/brand", label: "Mi Marca", icon: Palette },
   { href: "/dashboard/settings", label: "Configuración", icon: Settings },
 ]
 
+const adminItem = { href: "/dashboard/admin", label: "Superadmin", icon: Crown }
+
 interface SidebarProps {
   user: {
     name?: string | null
     email?: string | null
+    role?: string | null
   }
 }
 
@@ -55,8 +63,8 @@ export default function Sidebar({ user }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {navItems.map((item) => {
-          const active = pathname === item.href || 
+        {[...navItems, ...(user.role === "SUPERADMIN" ? [adminItem] : [])].map((item) => {
+          const active = pathname === item.href ||
             (item.href !== "/dashboard" && pathname.startsWith(item.href))
           return (
             <Link

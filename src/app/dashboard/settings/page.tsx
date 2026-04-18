@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Save, RefreshCw, Clock, Zap } from "lucide-react"
+import { Save, RefreshCw, Clock, Zap, MessageCircle } from "lucide-react"
 
 interface CalendarConfig {
   postsPerDay: number
   scheduleSlots: Array<{ time: string; type: "feed" | "story" | "reel" }>
   contentMix: Record<string, number>
   autoPublish: boolean
+  autoReplyComments: boolean
   timezone: string
 }
 
@@ -33,6 +34,7 @@ export default function SettingsPage() {
     scheduleSlots: DEFAULT_SLOTS,
     contentMix: { PRODUCTO: 30, PROYECTO: 25, TIP: 25, PROMO: 20 },
     autoPublish: true,
+    autoReplyComments: false,
     timezone: "America/Santiago",
   })
   const [loading, setLoading] = useState(true)
@@ -146,6 +148,41 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Auto-reply comments */}
+        <div className="card">
+          <h2 className="font-medium text-gray-100 mb-4 flex items-center gap-2">
+            <MessageCircle className="w-4 h-4 text-teal-400" />
+            Auto-responder de comentarios con IA
+          </h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-300">Responder comentarios automáticamente con IA</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                La IA analizará el sentimiento y generará respuestas acordes a tu marca
+              </p>
+            </div>
+            <button
+              onClick={() => setConfig((c) => ({ ...c, autoReplyComments: !c.autoReplyComments }))}
+              className={`relative w-12 h-6 rounded-full transition-colors ${
+                config.autoReplyComments ? "bg-teal-600" : "bg-gray-700"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                  config.autoReplyComments ? "translate-x-6" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
+          {config.autoReplyComments && (
+            <div className="mt-3 bg-teal-500/10 border border-teal-500/20 rounded-lg px-3 py-2">
+              <p className="text-xs text-teal-300">
+                El cron job en n8n debe llamar a <code className="bg-gray-900 px-1 rounded">/api/cron/comments</code> cada 30 min para sincronizar y responder automáticamente.
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Schedule slots */}
         <div className="card">
           <h2 className="font-medium text-gray-100 mb-4 flex items-center gap-2">
@@ -228,6 +265,15 @@ export default function SettingsPage() {
                 <br />
                 <span className="text-green-400">POST</span>{" "}
                 <span className="text-indigo-300">{process.env.NEXT_PUBLIC_APP_URL ?? "https://social.conectaai.cl"}/api/cron/publish</span>
+                <br />
+                <span className="text-yellow-400">Authorization:</span>{" "}
+                <span className="text-gray-300">Bearer {"{CRON_SECRET}"}</span>
+              </div>
+              <div className="border-t border-gray-800 pt-2">
+                <span className="text-gray-500">// Auto-responder comentarios (cada 30 min)</span>
+                <br />
+                <span className="text-green-400">POST</span>{" "}
+                <span className="text-indigo-300">{process.env.NEXT_PUBLIC_APP_URL ?? "https://social.conectaai.cl"}/api/cron/comments</span>
                 <br />
                 <span className="text-yellow-400">Authorization:</span>{" "}
                 <span className="text-gray-300">Bearer {"{CRON_SECRET}"}</span>
