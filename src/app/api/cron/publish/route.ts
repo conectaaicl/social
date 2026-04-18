@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { publishPost } from "@/app/api/posts/[id]/publish/route"
+import { publishPost } from "@/lib/publisher"
 
 function verifyCronSecret(req: NextRequest) {
   const auth = req.headers.get("authorization")
