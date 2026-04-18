@@ -85,32 +85,47 @@ export async function sendPostFailed(params: {
 export async function sendWeeklyReport(params: {
   email: string
   tenantName: string
-  stats: {
-    published: number
-    failed: number
-    reach: number
-    likes: number
-  }
+  publishedThisWeek: number
+  scheduledUpcoming: number
+  totalReach: number
+  weekReach: number
+  weekLikes: number
+  weekComments: number
+  topCaption: string
 }) {
   await sendEmail({
     to: params.email,
     subject: `📊 Reporte semanal — ${params.tenantName}`,
     html: `
       <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px">
-        <h2 style="color:#4f46e5">Resumen de la semana</h2>
+        <h2 style="color:#4f46e5">Resumen de la semana — ${params.tenantName}</h2>
         <p>Aquí está el desempeño de tu cuenta esta semana:</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0">
           <div style="background:#f0fdf4;border-radius:8px;padding:16px;text-align:center">
-            <p style="font-size:32px;font-weight:bold;color:#16a34a;margin:0">${params.stats.published}</p>
+            <p style="font-size:32px;font-weight:bold;color:#16a34a;margin:0">${params.publishedThisWeek}</p>
             <p style="color:#6b7280;font-size:13px;margin:4px 0 0">Posts publicados</p>
           </div>
           <div style="background:#fef9c3;border-radius:8px;padding:16px;text-align:center">
-            <p style="font-size:32px;font-weight:bold;color:#ca8a04;margin:0">${params.stats.reach.toLocaleString()}</p>
-            <p style="color:#6b7280;font-size:13px;margin:4px 0 0">Alcance total</p>
+            <p style="font-size:32px;font-weight:bold;color:#ca8a04;margin:0">${params.weekReach.toLocaleString()}</p>
+            <p style="color:#6b7280;font-size:13px;margin:4px 0 0">Alcance esta semana</p>
+          </div>
+          <div style="background:#eff6ff;border-radius:8px;padding:16px;text-align:center">
+            <p style="font-size:32px;font-weight:bold;color:#2563eb;margin:0">${params.weekLikes}</p>
+            <p style="color:#6b7280;font-size:13px;margin:4px 0 0">Likes</p>
+          </div>
+          <div style="background:#fdf4ff;border-radius:8px;padding:16px;text-align:center">
+            <p style="font-size:32px;font-weight:bold;color:#9333ea;margin:0">${params.scheduledUpcoming}</p>
+            <p style="color:#6b7280;font-size:13px;margin:4px 0 0">Posts programados</p>
           </div>
         </div>
-        <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/analytics" style="color:#4f46e5">Ver analytics completos →</a></p>
-        <p style="color:#6b7280;font-size:12px">ConectaAI Social — ${params.tenantName}</p>
+        ${params.topCaption !== "—" ? `
+        <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:16px 0;border-left:4px solid #4f46e5">
+          <p style="color:#6b7280;font-size:12px;margin:0 0 8px">🏆 Top post de la semana:</p>
+          <p style="color:#111827;margin:0;font-style:italic">${params.topCaption.slice(0, 200)}...</p>
+        </div>
+        ` : ""}
+        <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/analytics" style="color:#4f46e5;font-weight:bold">Ver analytics completos →</a></p>
+        <p style="color:#6b7280;font-size:12px">ConectaAI Social — automatizado por IA</p>
       </div>
     `,
   })

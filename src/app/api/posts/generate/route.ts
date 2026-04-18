@@ -11,6 +11,8 @@ const generateSchema = z.object({
   contentType: z.enum(["PRODUCTO", "PROYECTO", "TIP", "PROMO"]),
   platforms: z.array(z.enum(["INSTAGRAM", "FACEBOOK"])).min(1),
   scheduledAt: z.string().datetime(),
+  customCaption: z.string().optional(),
+  customHashtags: z.string().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -23,7 +25,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { postType, contentType, platforms, scheduledAt } = parsed.data
+  const { postType, contentType, platforms, scheduledAt, customCaption, customHashtags } = parsed.data
 
   const brandVoice = await prisma.brandVoice.findUnique({
     where: { tenantId: session.user.tenantId },
@@ -105,8 +107,8 @@ export async function POST(req: NextRequest) {
       where: { id: postId },
       data: {
         status: "SCHEDULED",
-        caption: content.caption,
-        hashtags: content.hashtags,
+        caption: customCaption ?? content.caption,
+        hashtags: customHashtags ?? content.hashtags,
         imagePrompt: content.imagePrompt,
         videoPrompt: content.videoPrompt,
         mediaUrls,

@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react"
 import {
   Sparkles, RefreshCw, Trash2, Send, Filter, Calendar, Instagram, Facebook,
-  Image, Video, AlertCircle, CheckCircle2, Clock, ChevronLeft, ChevronRight
+  Image, Video, AlertCircle, CheckCircle2, Clock, ChevronLeft, ChevronRight,
+  Hash, Wand2, CheckSquare, ChevronDown, ChevronUp,
 } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -11,6 +12,18 @@ import { es } from "date-fns/locale"
 type PostStatus = "PENDING" | "GENERATING" | "SCHEDULED" | "PUBLISHING" | "PUBLISHED" | "FAILED"
 type PostType = "FEED" | "STORY" | "CAROUSEL" | "REEL"
 type ContentType = "PRODUCTO" | "PROYECTO" | "TIP" | "PROMO"
+
+interface CaptionVariant {
+  caption: string
+  angle: string
+}
+
+interface HashtagResearch {
+  set1: string
+  set2: string
+  set3: string
+  explanation: string
+}
 
 interface Post {
   id: string
@@ -94,6 +107,13 @@ export default function PostsPage() {
     scheduledAt: todayAt(19),
   })
   const [genError, setGenError] = useState("")
+  const [captionVariants, setCaptionVariants] = useState<CaptionVariant[]>([])
+  const [selectedVariant, setSelectedVariant] = useState<number | null>(null)
+  const [loadingVariants, setLoadingVariants] = useState(false)
+  const [hashtagResearch, setHashtagResearch] = useState<HashtagResearch | null>(null)
+  const [loadingHashtags, setLoadingHashtags] = useState(false)
+  const [showHashtags, setShowHashtags] = useState(false)
+  const [selectedHashtagSet, setSelectedHashtagSet] = useState<string | null>(null)
 
   const limit = 12
 
@@ -118,20 +138,76 @@ export default function PostsPage() {
     setGenerating(true)
     setGenError("")
     try {
+      const body: any = { ...genForm }
+      if (selectedVariant !== null && captionVariants[selectedVariant]) {
+        body.customCaption = captionVariants[selectedVariant].caption
+      }
+      if (selectedHashtagSet) {
+        body.customHashtags = selectedHashtagSet
+      }
       const res = await fetch("/api/posts/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(genForm),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? "Error generando")
       setShowGenModal(false)
+      resetModal()
       fetchPosts()
     } catch (e: any) {
       setGenError(e.message)
     } finally {
       setGenerating(false)
     }
+  }
+
+  function resetModal() {
+    setCaptionVariants([])
+    setSelectedVariant(null)
+    setHashtagResearch(null)
+    setSelectedHashtagSet(null)
+    setShowHashtags(false)
+    setGenError("")
+  }
+
+  async function handleGetVariants() {
+    setLoadingVariants(true)
+    setCaptionVariants([])
+    setSelectedVariant(null)
+    try {
+      const res = await fetch("/api/posts/variants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postType: genForm.postType,
+          contentType: genForm.contentType,
+          platforms: genForm.platforms,
+        }),
+      })
+      const data = await res.json()
+      setCaptionVariants(data.variants ?? [])
+    } catch {}
+    setLoadingVariants(false)
+  }
+
+  async function handleResearchHashtags() {
+    setLoadingHashtags(true)
+    setHashtagResearch(null)
+    setShowHashtags(true)
+    try {
+      const res = await fetch("/api/hashtags/research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postType: genForm.postType,
+          contentType: genForm.contentType,
+        }),
+      })
+      const data = await res.json()
+      setHashtagResearch(data)
+    } catch {}
+    setLoadingHashtags(false)
   }
 
   async function handlePublish(postId: string) {
@@ -247,8 +323,8 @@ export default function PostsPage() {
 
       {/* Generate Modal */}
       {showGenModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 w-full max-w-lg my-4">
             <h2 className="text-lg font-semibold text-gray-100 mb-5 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-indigo-400" />
               Generar post con IA
@@ -261,7 +337,7 @@ export default function PostsPage() {
                   {(["FEED", "STORY", "REEL", "CAROUSEL"] as PostType[]).map((t) => (
                     <button
                       key={t}
-                      onClick={() => setGenForm((f) => ({ ...f, postType: t }))}
+                      onClick={() => { setGenForm((f) => ({ ...f, postType: t })); setCaptionVariants([]); setHashtagResearch(null) }}
                       className={`py-2 rounded-lg border text-xs font-medium transition-colors ${
                         genForm.postType === t
                           ? "border-indigo-500 bg-indigo-500/20 text-indigo-300"
@@ -280,7 +356,7 @@ export default function PostsPage() {
                   {(Object.entries(CONTENT_LABELS) as [ContentType, string][]).map(([k, v]) => (
                     <button
                       key={k}
-                      onClick={() => setGenForm((f) => ({ ...f, contentType: k }))}
+                      onClick={() => { setGenForm((f) => ({ ...f, contentType: k })); setCaptionVariants([]); setHashtagResearch(null) }}
                       className={`py-2 rounded-lg border text-sm transition-colors ${
                         genForm.contentType === k
                           ? "border-indigo-500 bg-indigo-500/20 text-indigo-300"
@@ -330,6 +406,108 @@ export default function PostsPage() {
                 />
               </div>
 
+              {/* PRO: Caption A/B Variants */}
+              <div className="border border-gray-800 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-800/40">
+                  <span className="text-xs font-semibold text-indigo-300 flex items-center gap-1.5">
+                    <Wand2 className="w-3.5 h-3.5" />
+                    A/B Testing de Captions
+                  </span>
+                  <button
+                    onClick={handleGetVariants}
+                    disabled={loadingVariants}
+                    className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 disabled:opacity-50"
+                  >
+                    {loadingVariants ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    {loadingVariants ? "Generando…" : "Generar 3 variantes"}
+                  </button>
+                </div>
+                {captionVariants.length > 0 && (
+                  <div className="divide-y divide-gray-800">
+                    {captionVariants.map((v, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setSelectedVariant(selectedVariant === i ? null : i)}
+                        className={`w-full text-left px-4 py-3 transition-colors ${
+                          selectedVariant === i
+                            ? "bg-indigo-600/15 border-l-2 border-indigo-500"
+                            : "hover:bg-gray-800/40"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className={`mt-0.5 w-4 h-4 shrink-0 rounded border text-xs flex items-center justify-center ${
+                            selectedVariant === i ? "border-indigo-500 bg-indigo-500 text-white" : "border-gray-600"
+                          }`}>
+                            {selectedVariant === i ? "✓" : (i + 1)}
+                          </span>
+                          <div className="min-w-0">
+                            <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wide">{v.angle}</span>
+                            <p className="text-xs text-gray-300 mt-0.5 leading-relaxed line-clamp-3">{v.caption}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                    {selectedVariant !== null && (
+                      <p className="px-4 py-2 text-xs text-green-400 bg-green-500/10">
+                        ✓ Variante "{captionVariants[selectedVariant].angle}" seleccionada
+                      </p>
+                    )}
+                    {selectedVariant === null && (
+                      <p className="px-4 py-2 text-xs text-gray-500">
+                        Sin selección → Claude generará el copy automáticamente
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* PRO: Hashtag Research */}
+              <div className="border border-gray-800 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-800/40">
+                  <span className="text-xs font-semibold text-teal-300 flex items-center gap-1.5">
+                    <Hash className="w-3.5 h-3.5" />
+                    Investigación de Hashtags
+                  </span>
+                  <button
+                    onClick={handleResearchHashtags}
+                    disabled={loadingHashtags}
+                    className="text-xs text-teal-400 hover:text-teal-300 flex items-center gap-1 disabled:opacity-50"
+                  >
+                    {loadingHashtags ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Hash className="w-3 h-3" />}
+                    {loadingHashtags ? "Analizando…" : "Investigar hashtags"}
+                  </button>
+                </div>
+                {showHashtags && hashtagResearch && (
+                  <div className="divide-y divide-gray-800">
+                    {[
+                      { label: "Populares (+1M)", key: "set1", color: "text-orange-400" },
+                      { label: "Nicho (50K-500K)", key: "set2", color: "text-teal-400" },
+                      { label: "Marca / Local", key: "set3", color: "text-blue-400" },
+                    ].map(({ label, key, color }) => {
+                      const val = hashtagResearch[key as keyof HashtagResearch] as string
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => setSelectedHashtagSet(selectedHashtagSet === val ? null : val)}
+                          className={`w-full text-left px-4 py-3 transition-colors ${
+                            selectedHashtagSet === val ? "bg-teal-600/10 border-l-2 border-teal-500" : "hover:bg-gray-800/40"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs font-semibold ${color}`}>{label}</span>
+                            {selectedHashtagSet === val && <span className="text-xs text-teal-400">✓ seleccionado</span>}
+                          </div>
+                          <p className="text-xs text-gray-400 leading-relaxed">{val}</p>
+                        </button>
+                      )
+                    })}
+                    <div className="px-4 py-2.5 bg-gray-900/40">
+                      <p className="text-xs text-gray-500 italic">{hashtagResearch.explanation}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {genError && (
                 <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-lg">
                   {genError}
@@ -339,7 +517,7 @@ export default function PostsPage() {
 
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => { setShowGenModal(false); setGenError("") }}
+                onClick={() => { setShowGenModal(false); resetModal() }}
                 className="btn-secondary flex-1"
                 disabled={generating}
               >
@@ -360,7 +538,7 @@ export default function PostsPage() {
 
             {generating && (
               <p className="text-xs text-gray-500 text-center mt-3">
-                Claude está creando el copy e imagen… puede tardar ~30s
+                Claude + fal.ai creando imagen… puede tardar ~30s
               </p>
             )}
           </div>

@@ -232,6 +232,15 @@ export default function SettingsPage() {
                 <span className="text-yellow-400">Authorization:</span>{" "}
                 <span className="text-gray-300">Bearer {"{CRON_SECRET}"}</span>
               </div>
+              <div className="border-t border-gray-800 pt-2">
+                <span className="text-gray-500">// Reporte semanal (lunes 09:00)</span>
+                <br />
+                <span className="text-green-400">POST</span>{" "}
+                <span className="text-indigo-300">{process.env.NEXT_PUBLIC_APP_URL ?? "https://social.conectaai.cl"}/api/cron/reports</span>
+                <br />
+                <span className="text-yellow-400">Authorization:</span>{" "}
+                <span className="text-gray-300">Bearer {"{CRON_SECRET}"}</span>
+              </div>
             </div>
           </div>
         </div>

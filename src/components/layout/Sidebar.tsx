@@ -13,6 +13,7 @@ import {
   Palette,
   BarChart3,
   Zap,
+  FolderImage,
 } from "lucide-react"
 import { clsx } from "clsx"
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/dashboard/calendar", label: "Calendario", icon: Calendar },
   { href: "/dashboard/posts", label: "Posts", icon: Image },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/media", label: "Media", icon: FolderImage },
   { href: "/dashboard/accounts", label: "Cuentas", icon: Instagram },
   { href: "/dashboard/brand", label: "Mi Marca", icon: Palette },
   { href: "/dashboard/settings", label: "Configuración", icon: Settings },
