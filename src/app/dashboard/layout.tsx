@@ -13,7 +13,11 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-screen bg-gray-950 overflow-hidden">
       <Sidebar user={session.user} />
-      <main className="flex-1 overflow-y-auto">
+      {/*
+        md: normal — no extra padding needed (sidebar is always visible)
+        mobile: pt-14 (top bar height) + pb-16 (bottom nav height)
+      */}
+      <main className="flex-1 overflow-y-auto pt-14 pb-16 md:pt-0 md:pb-0">
         {children}
       </main>
     </div>

@@ -105,7 +105,7 @@ export default function InsightsPage() {
   }
 
   return (
-    <div className="p-8 space-y-8 max-w-5xl">
+    <div className="p-4 md:p-8 space-y-5 md:space-y-8 max-w-5xl">
       <div>
         <h1 className="text-2xl font-semibold text-gray-100">Inteligencia de Contenido</h1>
         <p className="text-gray-500 mt-0.5 text-sm">IA que analiza tus datos y optimiza tu estrategia</p>

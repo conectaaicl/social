@@ -168,7 +168,7 @@ export default function AdsPage() {
   const activeCampaigns = campaigns.filter((c) => c.status === "ACTIVE").length
 
   return (
-    <div className="p-8 space-y-6 max-w-5xl">
+    <div className="p-4 md:p-8 space-y-4 md:space-y-6 max-w-5xl">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-100 flex items-center gap-2">

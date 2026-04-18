@@ -69,7 +69,7 @@ export default function AdminPage() {
   const activeTenants = tenants.filter((t) => t.active).length
 
   return (
-    <div className="p-8 space-y-6 max-w-6xl">
+    <div className="p-4 md:p-8 space-y-4 md:space-y-6 max-w-6xl">
       <div>
         <h1 className="text-2xl font-semibold text-gray-100 flex items-center gap-2">
           <Crown className="w-6 h-6 text-yellow-400" /> Panel Superadmin

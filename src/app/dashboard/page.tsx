@@ -87,7 +87,7 @@ export default async function DashboardPage() {
   const isEmpty = d.published === 0 && d.scheduled === 0
 
   return (
-    <div className="p-8 space-y-6 max-w-6xl">
+    <div className="p-4 md:p-8 space-y-4 md:space-y-6 max-w-6xl">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -142,7 +142,7 @@ export default async function DashboardPage() {
       ) : (
         <>
           {/* ── Post stats ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {[
               { label: "Publicados", value: d.published, icon: CheckCircle2, color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20" },
               { label: "Programados", value: d.scheduled, icon: Clock, color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20" },
@@ -162,7 +162,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* ── Engagement metrics ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {[
               { label: "Alcance del mes", value: d.monthReach.toLocaleString(), icon: Eye, color: "text-purple-400" },
               { label: "Likes del mes", value: d.monthLikes.toLocaleString(), icon: Heart, color: "text-pink-400" },
@@ -178,7 +178,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* ── Quick actions + alerts ── */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
             {/* Pending comments alert */}
             {d.pendingComments > 0 && (
               <Link href="/dashboard/comments" className="card border border-orange-500/20 bg-orange-500/5 p-4 hover:border-orange-500/40 transition-colors group">
