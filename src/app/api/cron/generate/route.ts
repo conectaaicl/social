@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       date: targetDate,
     })
 
-    const platforms = [...new Set(tenant.socialAccounts.map((a) => a.platform))] as Array<"INSTAGRAM" | "FACEBOOK">
+    const platforms = Array.from(new Set(tenant.socialAccounts.map((a) => a.platform))) as Array<"INSTAGRAM" | "FACEBOOK">
     if (!platforms.length) continue
 
     for (const slot of slots) {
