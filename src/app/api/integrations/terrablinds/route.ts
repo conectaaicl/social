@@ -93,7 +93,7 @@ ${event === "product.on_sale" ? "¡OFERTA ESPECIAL! Aprovecha este precio limita
       data: {
         type: postType,
         contentType,
-        platform: platforms,
+        platform: platforms as any,
         status: "SCHEDULED",
         caption: content.caption,
         hashtags: content.hashtags,

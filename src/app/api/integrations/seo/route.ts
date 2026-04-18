@@ -101,7 +101,7 @@ ${product.url ? `URL: ${product.url}` : ""}
     data: {
       type: "FEED",
       contentType,
-      platform: platforms,
+      platform: platforms as any,
       status: "SCHEDULED",
       caption: content.caption,
       hashtags: content.hashtags,
