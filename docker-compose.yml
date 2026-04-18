@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: social_db
+    environment:
+      POSTGRES_USER: social
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: social_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U social"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    build: .
+    container_name: social_app
+    ports:
+      - "127.0.0.1:3011:3011"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://social:${DB_PASSWORD}@db:5432/social_db
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    name: social_pgdata

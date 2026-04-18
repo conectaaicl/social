@@ -1,15 +1,16 @@
 #!/bin/bash
-
-# ─────────────────────────────────────────────
-# ConectaAI Social — Deploy Script
-# VPS: 62.169.17.214 | Puerto: 3011
-# ─────────────────────────────────────────────
-
+# ConectaAI Social — Deploy via Docker
 set -e
+cd /var/www/social
+git pull origin main
+docker compose up --build -d
+docker compose ps
+echo "Deploy completado — https://social.conectaai.cl"
+exit 0
 
 APP_NAME="social-conectaai"
-APP_DIR="/var/www/social-conectaai"
-REPO_URL="REEMPLAZAR_CON_TU_REPO_GIT"
+APP_DIR="/var/www/social"
+REPO_URL="https://github.com/conectaaicl/social.git"
 PORT=3011
 DB_NAME="social_db"
 
