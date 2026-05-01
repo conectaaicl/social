@@ -37,6 +37,7 @@ type FormData = {
   language: string
   customPrompt: string
   contentMix: Record<string, number>
+  logoUrl: string
 }
 
 const defaultForm: FormData = {
@@ -49,6 +50,7 @@ const defaultForm: FormData = {
   language: "es-CL",
   customPrompt: "",
   contentMix: { PRODUCTO: 30, PROYECTO: 25, TIP: 25, PROMO: 20 },
+  logoUrl: "",
 }
 
 export default function BrandPage() {
@@ -78,6 +80,7 @@ export default function BrandPage() {
           ...form,
           keywords: form.keywords.split(",").map((k) => k.trim()).filter(Boolean),
           products: form.products.split(",").map((p) => p.trim()).filter(Boolean),
+          logoUrl: form.logoUrl.trim() || undefined,
         }),
       })
       const data = await res.json()
@@ -163,6 +166,29 @@ export default function BrandPage() {
               />
               <p className="text-xs text-gray-600 mt-1">
                 Sé específico — esto es lo que la IA usará para generar el contenido
+              </p>
+            </div>
+            <div>
+              <label className="label">Logo de tu marca (URL)</label>
+              <div className="flex items-center gap-3">
+                <input
+                  className="input flex-1"
+                  value={form.logoUrl}
+                  onChange={(e) => update("logoUrl", e.target.value)}
+                  placeholder="https://terrablinds.cl/logo.png"
+                  type="url"
+                />
+                {form.logoUrl && (
+                  <img
+                    src={form.logoUrl}
+                    alt="Logo preview"
+                    className="w-10 h-10 rounded-lg object-contain bg-white border border-gray-700 shrink-0"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                  />
+                )}
+              </div>
+              <p className="text-xs text-gray-600 mt-1">
+                URL pública del logo — aparecerá en el sidebar y los reportes
               </p>
             </div>
             <div>

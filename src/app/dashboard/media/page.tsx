@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { Image, Video, Trash2, RefreshCw, Download, ChevronLeft, ChevronRight } from "lucide-react"
+import { Image, Video, Trash2, RefreshCw, Download, ChevronLeft, ChevronRight, Upload, X } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -22,8 +22,30 @@ export default function MediaPage() {
   const [loading, setLoading] = useState(true)
   const [filterType, setFilterType] = useState("")
   const [preview, setPreview] = useState<MediaItem | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState("")
 
   const limit = 24
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setUploadError("")
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await fetch("/api/media", { method: "POST", body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Error subiendo")
+      await fetchMedia()
+    } catch (err: any) {
+      setUploadError(err.message)
+    } finally {
+      setUploading(false)
+      e.target.value = ""
+    }
+  }
 
   const fetchMedia = useCallback(async () => {
     setLoading(true)
@@ -69,8 +91,26 @@ export default function MediaPage() {
           <button onClick={fetchMedia} className="btn-secondary p-2">
             <RefreshCw className="w-4 h-4" />
           </button>
+          <label className={`btn-primary flex items-center gap-2 cursor-pointer ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleUpload}
+              disabled={uploading}
+            />
+            {uploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            {uploading ? "Subiendo…" : "Subir foto"}
+          </label>
         </div>
       </div>
+      {uploadError && (
+        <div className="mb-4 flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-2 text-sm text-red-400">
+          <X className="w-4 h-4 shrink-0" />
+          {uploadError}
+          <button onClick={() => setUploadError("")} className="ml-auto text-gray-500 hover:text-gray-400">×</button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-20">
@@ -80,7 +120,7 @@ export default function MediaPage() {
         <div className="card text-center py-16">
           <Image className="w-10 h-10 text-gray-600 mx-auto mb-4" />
           <h3 className="text-gray-300 font-medium mb-2">Sin archivos aún</h3>
-          <p className="text-gray-500 text-sm">Los assets generados por IA aparecerán aquí automáticamente</p>
+          <p className="text-gray-500 text-sm">Las imágenes generadas por IA y tus fotos subidas aparecerán aquí</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">

@@ -3,9 +3,11 @@ import { prisma } from "@/lib/prisma"
 import {
   CheckCircle2, Clock, TrendingUp, AlertCircle,
   Heart, Eye, MessageCircle, Zap, ArrowRight,
-  Lightbulb, BarChart3, Image, Calendar,
+  Lightbulb, BarChart3, Image, Calendar, Instagram,
+  Facebook, Link2, XCircle, WifiOff,
 } from "lucide-react"
 import Link from "next/link"
+import { ServiceStatusWidget } from "@/components/dashboard/ServiceStatusWidget"
 
 async function getDashboardData(tenantId: string) {
   const now = new Date()
@@ -13,7 +15,7 @@ async function getDashboardData(tenantId: string) {
 
   const [
     published, scheduled, failed,
-    monthPosts, pendingComments, nextPost, recentPosts,
+    monthPosts, pendingComments, nextPost, recentPosts, socialAccounts,
   ] = await Promise.all([
     prisma.post.count({ where: { tenantId, status: "PUBLISHED" } }),
     prisma.post.count({ where: { tenantId, status: "SCHEDULED" } }),
@@ -37,6 +39,10 @@ async function getDashboardData(tenantId: string) {
         platform: true, reach: true, likes: true, publishedAt: true,
       },
     }),
+    prisma.socialAccount.findMany({
+      where: { tenantId, active: true },
+      select: { platform: true, accountName: true, tokenExpiresAt: true },
+    }),
   ])
 
   const monthReach = monthPosts.reduce((s, p) => s + (p.reach ?? 0), 0)
@@ -52,7 +58,7 @@ async function getDashboardData(tenantId: string) {
     monthReach, monthLikes, monthComments,
     engagementRate: Number(engagementRate),
     pendingComments,
-    nextPost, recentPosts,
+    nextPost, recentPosts, socialAccounts,
   }
 }
 
@@ -81,9 +87,12 @@ export default async function DashboardPage() {
     : {
         published: 0, scheduled: 0, failed: 0, monthPosts: 0,
         monthReach: 0, monthLikes: 0, monthComments: 0, engagementRate: 0,
-        pendingComments: 0, nextPost: null, recentPosts: [],
+        pendingComments: 0, nextPost: null, recentPosts: [], socialAccounts: [],
       }
 
+  const igAccount = d.socialAccounts.find((a) => a.platform === "INSTAGRAM")
+  const fbAccount = d.socialAccounts.find((a) => a.platform === "FACEBOOK")
+  const hasAccounts = d.socialAccounts.length > 0
   const isEmpty = d.published === 0 && d.scheduled === 0
 
   return (
@@ -114,7 +123,77 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {isEmpty ? (
+      {/* ── Connected accounts status bar ── */}
+      <div className="card p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider shrink-0">Redes conectadas</span>
+          <div className="flex flex-wrap gap-2 flex-1">
+            <div className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium " + (igAccount ? "bg-pink-500/10 border-pink-500/30 text-pink-300" : "bg-gray-800/80 border-gray-700 text-gray-500")}>
+              <Instagram className="w-3.5 h-3.5" />
+              {igAccount ? (<><CheckCircle2 className="w-3 h-3 text-green-400" /><span>{igAccount.accountName}</span></>) : (<><XCircle className="w-3 h-3 text-gray-600" /><span>Instagram sin conectar</span></>)}
+            </div>
+            <div className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium " + (fbAccount ? "bg-blue-500/10 border-blue-500/30 text-blue-300" : "bg-gray-800/80 border-gray-700 text-gray-500")}>
+              <Facebook className="w-3.5 h-3.5" />
+              {fbAccount ? (<><CheckCircle2 className="w-3 h-3 text-green-400" /><span>{fbAccount.accountName}</span></>) : (<><XCircle className="w-3 h-3 text-gray-600" /><span>Facebook sin conectar</span></>)}
+            </div>
+          </div>
+          {!hasAccounts ? (
+            <Link href="/dashboard/accounts" className="btn-primary text-xs py-1.5 px-3 shrink-0 flex items-center gap-1"><Link2 className="w-3 h-3" />Conectar</Link>
+          ) : (
+            <Link href="/dashboard/accounts" className="text-xs text-gray-500 hover:text-gray-300 transition-colors shrink-0 flex items-center gap-1">Gestionar <ArrowRight className="w-3 h-3" /></Link>
+          )}
+        </div>
+      </div>
+
+
+      {/* ── Stats cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        {[
+          { label: "Publicados", value: d.published, icon: CheckCircle2, color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20", href: "/dashboard/posts" },
+          { label: "Programados", value: d.scheduled, icon: Clock, color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", href: "/dashboard/posts" },
+          { label: "Este mes", value: d.monthPosts, icon: Calendar, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20", href: "/dashboard/analytics" },
+          { label: "Fallidos", value: d.failed, icon: AlertCircle, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", href: "/dashboard/posts" },
+        ].map((c2) => (
+          <Link key={c2.label} href={c2.href} className={"card border " + c2.border + " flex items-center gap-4 hover:opacity-80 transition-opacity"}>
+            <div className={c2.bg + " " + c2.border + " border p-3 rounded-lg shrink-0"}><c2.icon className={"w-5 h-5 " + c2.color} /></div>
+            <div><p className="text-2xl font-bold text-gray-100">{c2.value}</p><p className="text-sm text-gray-500">{c2.label}</p></div>
+          </Link>
+        ))}
+      </div>
+
+      {/* ── Engagement metrics ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        {[
+          { label: "Alcance del mes", value: d.monthReach.toLocaleString("es-CL"), icon: Eye, color: "text-purple-400", bg: "bg-purple-500/10" },
+          { label: "Likes del mes", value: d.monthLikes.toLocaleString("es-CL"), icon: Heart, color: "text-pink-400", bg: "bg-pink-500/10" },
+          { label: "Comentarios", value: d.monthComments.toLocaleString("es-CL"), icon: MessageCircle, color: "text-teal-400", bg: "bg-teal-500/10" },
+          { label: "Engagement rate", value: d.engagementRate + "%", icon: TrendingUp, color: "text-yellow-400", bg: "bg-yellow-500/10" },
+        ].map((c2) => (
+          <div key={c2.label} className="card p-4 border border-transparent hover:border-gray-700 transition-colors">
+            <div className={c2.bg + " w-8 h-8 rounded-lg flex items-center justify-center mb-3"}><c2.icon className={"w-4 h-4 " + c2.color} /></div>
+            <p className="text-xl font-bold text-gray-100">{c2.value}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{c2.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {hasAccounts && isEmpty && (
+        <div className="card border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/5 p-6">
+          <div className="flex items-start gap-4">
+            <div className="bg-indigo-500/20 p-3 rounded-xl shrink-0"><Zap className="w-6 h-6 text-indigo-400" /></div>
+            <div>
+              <h3 className="font-semibold text-gray-100 mb-1">Cuentas conectadas — listo para publicar</h3>
+              <p className="text-gray-400 text-sm mb-4">Genera tu primer post con IA. El sistema crea la imagen, caption y hashtags, y te envía aprobación por WhatsApp.</p>
+              <div className="flex gap-3">
+                <Link href="/dashboard/posts" className="btn-primary text-sm py-1.5 px-3 flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" />Generar primer post</Link>
+                <Link href="/dashboard/brand" className="btn-secondary text-sm py-1.5 px-3">Revisar marca</Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isEmpty && !hasAccounts ? (
         /* ── Empty state ── */
         <div className="card border border-indigo-500/30 bg-indigo-500/5 p-6">
           <div className="flex items-start gap-4">
@@ -176,6 +255,9 @@ export default async function DashboardPage() {
               </div>
             ))}
           </div>
+
+          {/* ── Service status ── */}
+          <ServiceStatusWidget />
 
           {/* ── Quick actions + alerts ── */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">

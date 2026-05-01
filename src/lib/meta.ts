@@ -1,4 +1,4 @@
-const META_V = "v19.0"
+const META_V = "v21.0"
 const META_BASE = `https://graph.facebook.com/${META_V}`
 
 export interface MetaPage {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { generatePostContent } from "@/lib/claude"
 import { generateImage } from "@/lib/fal"
+import { applyBrandOverlayAndUpload } from "@/lib/brand-overlay"
 import { animateImageToVideo } from "@/lib/replicate"
 import { buildDailySchedule } from "@/lib/scheduler"
 
@@ -100,7 +101,16 @@ export async function POST(req: NextRequest) {
           platforms,
         })
 
-        const imageUrl = await generateImage(content.imagePrompt, slot.postType)
+        const rawImageUrl = await generateImage(content.imagePrompt, slot.postType)
+        let imageUrl = rawImageUrl
+        try {
+          imageUrl = await applyBrandOverlayAndUpload({
+            imageUrl: rawImageUrl,
+            brandName: tenant.brandVoice.industry,
+            brandColors: (tenant.brandVoice as any).brandColors?.length ? (tenant.brandVoice as any).brandColors : ["#1a1a2e"],
+            postType: slot.postType,
+          })
+        } catch { /* fallback to raw */ }
         const mediaUrls: string[] = [imageUrl]
         let thumbnailUrl: string | undefined
 

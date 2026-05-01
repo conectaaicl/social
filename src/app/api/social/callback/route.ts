@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   try {
     const callbackUrl = `${appUrl}/api/social/callback`
     const tokenRes = await fetch(
-      `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${process.env.META_APP_ID}&client_secret=${process.env.META_APP_SECRET}&redirect_uri=${encodeURIComponent(callbackUrl)}&code=${code}`
+      `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${process.env.META_APP_ID}&client_secret=${process.env.META_APP_SECRET}&redirect_uri=${encodeURIComponent(callbackUrl)}&code=${code}`
     )
     const tokenData = await tokenRes.json()
     if (tokenData.error) throw new Error(tokenData.error.message)

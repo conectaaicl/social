@@ -8,6 +8,7 @@ import {
   publishFacebookStory,
 } from "@/lib/meta"
 import { sendPostPublished, sendPostFailed } from "@/lib/mail"
+import { sendPostPublishedWhatsApp } from "@/lib/whatsapp"
 
 export async function publishPost(postId: string, tenantId: string) {
   const post = await prisma.post.findFirst({
@@ -27,30 +28,41 @@ export async function publishPost(postId: string, tenantId: string) {
   const metaPostIds: string[] = []
 
   try {
+    const platformErrors: string[] = []
+
     for (const platform of post.platform) {
-      const account = await prisma.socialAccount.findFirst({
-        where: { tenantId, platform, active: true },
-      })
-      if (!account) throw new Error(`No hay cuenta de ${platform} conectada`)
+      try {
+        const account = await prisma.socialAccount.findFirst({
+          where: { tenantId, platform, active: true },
+        })
+        if (!account) { platformErrors.push(`${platform}: sin cuenta`); continue }
 
-      let metaId: string
+        let metaId: string
 
-      if (platform === "INSTAGRAM") {
-        if (post.type === "STORY") {
-          metaId = await publishInstagramStory(account.accountId, account.accessToken, mediaUrl)
-        } else if (post.type === "REEL") {
-          metaId = await publishInstagramReel(account.accountId, account.accessToken, mediaUrl, fullCaption)
+        if (platform === "INSTAGRAM") {
+          if (post.type === "STORY") {
+            metaId = await publishInstagramStory(account.accountId, account.accessToken, mediaUrl)
+          } else if (post.type === "REEL") {
+            metaId = await publishInstagramReel(account.accountId, account.accessToken, mediaUrl, fullCaption)
+          } else {
+            metaId = await publishInstagramFeed(account.accountId, account.accessToken, mediaUrl, fullCaption)
+          }
         } else {
-          metaId = await publishInstagramFeed(account.accountId, account.accessToken, mediaUrl, fullCaption)
+          if (post.type === "STORY") {
+            metaId = await publishFacebookStory(account.pageId ?? account.accountId, account.accessToken, mediaUrl)
+          } else {
+            metaId = await publishFacebookPost(account.pageId ?? account.accountId, account.accessToken, fullCaption, mediaUrl)
+          }
         }
-      } else {
-        if (post.type === "STORY") {
-          metaId = await publishFacebookStory(account.pageId ?? account.accountId, account.accessToken, mediaUrl)
-        } else {
-          metaId = await publishFacebookPost(account.pageId ?? account.accountId, account.accessToken, fullCaption, mediaUrl)
-        }
+        metaPostIds.push(metaId)
+      } catch (platformErr: any) {
+        platformErrors.push(`${platform}: ${platformErr.message}`)
+        console.warn(`Platform ${platform} failed:`, platformErr.message)
       }
-      metaPostIds.push(metaId)
+    }
+
+    if (metaPostIds.length === 0 && platformErrors.length > 0) {
+      throw new Error(platformErrors.join(" | "))
     }
 
     await prisma.post.update({
@@ -66,6 +78,16 @@ export async function publishPost(postId: string, tenantId: string) {
         caption: post.caption,
         platforms: post.platform,
         postType: post.type,
+      }).catch(() => {})
+    }
+
+    const waPhone = process.env.APPROVAL_WHATSAPP_PHONE
+    if (waPhone) {
+      sendPostPublishedWhatsApp({
+        phone: waPhone,
+        platform: post.platform.join(" + "),
+        postType: post.type,
+        caption: post.caption,
       }).catch(() => {})
     }
 

@@ -13,6 +13,7 @@ const brandSchema = z.object({
   language: z.string().default("es-CL"),
   customPrompt: z.string().optional(),
   contentMix: z.record(z.number()),
+  logoUrl: z.string().url().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -28,14 +29,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 })
     }
 
+    const { logoUrl, ...brandData } = parsed.data
+
     const brandVoice = await prisma.brandVoice.upsert({
       where: { tenantId: session.user.tenantId },
-      update: parsed.data,
+      update: brandData,
       create: {
-        ...parsed.data,
+        ...brandData,
         tenantId: session.user.tenantId,
       },
     })
+
+    // Save logo to Tenant record so it appears in the sidebar
+    if (logoUrl !== undefined) {
+      await prisma.tenant.update({
+        where: { id: session.user.tenantId },
+        data: { logo: logoUrl },
+      })
+    }
 
     // Crear/actualizar CalendarConfig con el contentMix
     const slots = [
@@ -71,15 +82,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const brandVoice = await prisma.brandVoice.findUnique({
-      where: { tenantId: session.user.tenantId },
-    })
+    const [brandVoice, calendarConfig, tenant] = await Promise.all([
+      prisma.brandVoice.findUnique({ where: { tenantId: session.user.tenantId } }),
+      prisma.calendarConfig.findUnique({ where: { tenantId: session.user.tenantId } }),
+      prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, logo: true } }),
+    ])
 
-    const calendarConfig = await prisma.calendarConfig.findUnique({
-      where: { tenantId: session.user.tenantId },
-    })
-
-    return NextResponse.json({ brandVoice, calendarConfig })
+    return NextResponse.json({ brandVoice, calendarConfig, tenant })
   } catch (error) {
     console.error("Brand get error:", error)
     return NextResponse.json({ error: "Error interno" }, { status: 500 })

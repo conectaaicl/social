@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 
+// pages_manage_posts y business_management requieren App Review en Meta
+// Para desarrollo usamos solo los scopes básicos aprobados
 const META_SCOPES = [
-  "pages_manage_posts",
+  "pages_show_list",
   "pages_read_engagement",
-  "instagram_basic",
   "instagram_content_publish",
   "instagram_manage_insights",
-  "pages_show_list",
+  "instagram_manage_comments",
+  "pages_manage_posts",
 ].join(",")
 
 export async function GET(req: NextRequest) {
@@ -22,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/social/callback`
 
-  const oauthUrl = new URL("https://www.facebook.com/v19.0/dialog/oauth")
+  const oauthUrl = new URL("https://www.facebook.com/v21.0/dialog/oauth")
   oauthUrl.searchParams.set("client_id", process.env.META_APP_ID!)
   oauthUrl.searchParams.set("redirect_uri", callbackUrl)
   oauthUrl.searchParams.set("scope", META_SCOPES)

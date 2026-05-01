@@ -25,9 +25,11 @@ function pickContentType(
   contentMix: Record<string, number>,
   usedCounts: Record<string, number>
 ): "PRODUCTO" | "PROYECTO" | "TIP" | "PROMO" {
-  const types = Object.keys(contentMix) as Array<"PRODUCTO" | "PROYECTO" | "TIP" | "PROMO">
+  const normalizedMix: Record<string, number> = {}
+  for (const [k, v] of Object.entries(contentMix)) normalizedMix[k.toUpperCase()] = v
+  const types = Object.keys(normalizedMix) as Array<"PRODUCTO" | "PROYECTO" | "TIP" | "PROMO">
   const weights = types.map((t) => {
-    const target = contentMix[t] ?? 0
+    const target = normalizedMix[t] ?? 0
     const used = usedCounts[t] ?? 0
     return Math.max(0, target - used * 10)
   })

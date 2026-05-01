@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import {
   Sparkles, RefreshCw, Trash2, Send, Filter, Calendar, Instagram, Facebook,
   Image, Video, AlertCircle, CheckCircle2, Clock, ChevronLeft, ChevronRight,
-  Hash, Wand2, CheckSquare, ChevronDown, ChevronUp,
+  Hash, Wand2, CheckSquare, ChevronDown, ChevronUp, Upload,
 } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -113,6 +113,10 @@ export default function PostsPage() {
   const [hashtagResearch, setHashtagResearch] = useState<HashtagResearch | null>(null)
   const [loadingHashtags, setLoadingHashtags] = useState(false)
   const [showHashtags, setShowHashtags] = useState(false)
+  const [useLibraryImage, setUseLibraryImage] = useState(false)
+  const [libraryImageUrl, setLibraryImageUrl] = useState<string | null>(null)
+  const [libraryItems, setLibraryItems] = useState<{ id: string; url: string }[]>([])
+  const [loadingLibrary, setLoadingLibrary] = useState(false)
   const [selectedHashtagSet, setSelectedHashtagSet] = useState<string | null>(null)
 
   const limit = 12
@@ -138,7 +142,8 @@ export default function PostsPage() {
     setGenerating(true)
     setGenError("")
     try {
-      const body: any = { ...genForm }
+      const body: any = { ...genForm, scheduledAt: new Date(genForm.scheduledAt).toISOString() }
+      if (libraryImageUrl) body.libraryImageUrl = libraryImageUrl
       if (selectedVariant !== null && captionVariants[selectedVariant]) {
         body.customCaption = captionVariants[selectedVariant].caption
       }
@@ -169,6 +174,9 @@ export default function PostsPage() {
     setSelectedHashtagSet(null)
     setShowHashtags(false)
     setGenError("")
+    setUseLibraryImage(false)
+    setLibraryImageUrl(null)
+    setLibraryItems([])
   }
 
   async function handleGetVariants() {
@@ -208,6 +216,17 @@ export default function PostsPage() {
       setHashtagResearch(data)
     } catch {}
     setLoadingHashtags(false)
+  }
+
+  async function fetchLibraryItems() {
+    setLoadingLibrary(true)
+    try {
+      const res = await fetch("/api/media?limit=9&source=UPLOADED")
+      const data = await res.json()
+      setLibraryItems(data.items ?? [])
+    } finally {
+      setLoadingLibrary(false)
+    }
   }
 
   async function handlePublish(postId: string) {
@@ -508,6 +527,72 @@ export default function PostsPage() {
                 )}
               </div>
 
+              {/* Library Image Picker */}
+              <div className="border border-gray-800 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-800/40">
+                  <span className="text-xs font-semibold text-purple-300 flex items-center gap-1.5">
+                    <Upload className="w-3.5 h-3.5" />
+                    Imagen de tu biblioteca
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !useLibraryImage
+                      setUseLibraryImage(next)
+                      if (!next) setLibraryImageUrl(null)
+                      else if (libraryItems.length === 0) fetchLibraryItems()
+                    }}
+                    className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                  >
+                    {useLibraryImage ? "← Usar IA" : "Elegir foto propia"}
+                  </button>
+                </div>
+                {useLibraryImage && (
+                  <div className="p-3">
+                    {loadingLibrary ? (
+                      <div className="flex justify-center py-4">
+                        <RefreshCw className="w-4 h-4 animate-spin text-gray-500" />
+                      </div>
+                    ) : libraryItems.length === 0 ? (
+                      <div className="text-center py-3">
+                        <p className="text-xs text-gray-500 mb-1">Sin fotos subidas aún</p>
+                        <a href="/dashboard/media" className="text-xs text-indigo-400 hover:text-indigo-300" target="_blank">
+                          Subir fotos en Biblioteca →
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {libraryItems.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setLibraryImageUrl(libraryImageUrl === item.url ? null : item.url)}
+                            className={`relative aspect-square rounded overflow-hidden border-2 transition-colors ${
+                              libraryImageUrl === item.url
+                                ? "border-purple-500"
+                                : "border-transparent hover:border-gray-600"
+                            }`}
+                          >
+                            <img src={item.url} alt="" className="w-full h-full object-cover" />
+                            {libraryImageUrl === item.url && (
+                              <div className="absolute inset-0 bg-purple-500/30 flex items-center justify-center">
+                                <CheckSquare className="w-5 h-5 text-purple-200" />
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {libraryImageUrl && (
+                      <p className="text-xs text-purple-400 mt-2 flex items-center gap-1.5">
+                        <CheckSquare className="w-3.5 h-3.5" />
+                        Foto seleccionada — IA solo genera caption e hashtags
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {genError && (
                 <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-lg">
                   {genError}
@@ -538,7 +623,7 @@ export default function PostsPage() {
 
             {generating && (
               <p className="text-xs text-gray-500 text-center mt-3">
-                Claude + fal.ai creando imagen… puede tardar ~30s
+                IA generando caption + imagen… puede tardar ~30s
               </p>
             )}
           </div>
