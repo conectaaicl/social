@@ -93,6 +93,7 @@ model Tenant {
   calendar        CalendarConfig?
   postComments    PostComment[]
   adCampaigns     AdCampaign[]
+  mediaCategories MediaCategory[]
 
   @@map("tenants")
 }
@@ -347,4 +348,19 @@ enum AdStatus {
   PAUSED
   ENDED
   REJECTED
+}
+
+model MediaCategory {
+  id         String      @id @default(cuid())
+  name       String
+  slug       String
+  color      String      @default("#6366f1")
+  icon       String      @default("📁")
+  tenantId   String
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  mediaItems MediaItem[]
+  createdAt  DateTime    @default(now())
+
+  @@unique([slug, tenantId])
+  @@map("media_categories")
 }

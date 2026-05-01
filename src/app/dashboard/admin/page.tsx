@@ -72,6 +72,8 @@ function Toasts({ toasts }: { toasts: Toast[] }) {
 function NewTenantModal({ onClose, onCreated }: { onClose: () => void; onCreated: (msg: string) => void }) {
   const [form, setForm] = useState({ tenantName: "", email: "", name: "", password: "", plan: "PRO" })
   const [saving, setSaving] = useState(false)
+  const [sendingCreds, setSendingCreds] = useState(false)
+  const [createdUserId, setCreatedUserId] = useState<string | null>(null)
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
 
@@ -82,9 +84,25 @@ function NewTenantModal({ onClose, onCreated }: { onClose: () => void; onCreated
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "create_tenant", ...form }),
       })
-      if (res.ok) { onCreated("Tenant creado exitosamente"); onClose() }
-      else { const d = await res.json(); onCreated("Error: " + (d.error ?? "desconocido")) }
+      if (res.ok) {
+        const data = await res.json()
+        setCreatedUserId(data.user?.id ?? null)
+        onCreated("Tenant creado exitosamente")
+      } else { const d = await res.json(); onCreated("Error: " + (d.error ?? "desconocido")); onClose() }
     } finally { setSaving(false) }
+  }
+
+  async function sendCreds() {
+    if (!createdUserId) return
+    setSendingCreds(true)
+    try {
+      const res = await fetch("/api/admin/tenants", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send_credentials", userId: createdUserId, password: form.password, loginUrl: "https://social.conectaai.cl/auth/login" }),
+      })
+      if (res.ok) { onCreated("Credenciales enviadas a " + form.email); onClose() }
+      else onCreated("Tenant creado pero error al enviar email")
+    } finally { setSendingCreds(false); onClose() }
   }
 
   return (
@@ -117,11 +135,29 @@ function NewTenantModal({ onClose, onCreated }: { onClose: () => void; onCreated
               {["BASIC", "PRO", "AGENCY"].map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
-          <button type="submit" disabled={saving}
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl py-2.5 text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            {saving ? "Creando..." : "Crear Tenant"}
-          </button>
+          {!createdUserId ? (
+            <button type="submit" disabled={saving}
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl py-2.5 text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {saving ? "Creando..." : "Crear Tenant"}
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
+                <p className="text-sm text-green-400 font-semibold">Tenant creado exitosamente</p>
+                <p className="text-xs text-gray-500 mt-1">{form.email}</p>
+              </div>
+              <button type="button" onClick={sendCreds} disabled={sendingCreds}
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl py-2.5 text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                {sendingCreds ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                {sendingCreds ? "Enviando..." : "Enviar credenciales al correo"}
+              </button>
+              <button type="button" onClick={onClose}
+                className="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl py-2.5 text-sm font-medium transition-all">
+                Cerrar sin enviar
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

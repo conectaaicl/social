@@ -12,11 +12,13 @@ export async function GET(req: NextRequest) {
   const limit = Number(searchParams.get("limit") ?? "24")
   const type = searchParams.get("type") ?? undefined
   const source = searchParams.get("source") ?? undefined
+  const categoryId = searchParams.get("categoryId") ?? undefined
 
   const where: any = {
     tenantId: session.user.tenantId,
     ...(type ? { type: type as any } : {}),
     ...(source ? { source: source as any } : {}),
+    ...(categoryId ? { categoryId } : {}),
   }
 
   const [items, total] = await Promise.all([
@@ -43,6 +45,7 @@ export async function POST(req: NextRequest) {
   }
 
   const formData = await req.formData()
+  const uploadCatId = formData.get("categoryId") as string | null
   const file = formData.get("file") as File | null
   if (!file) return NextResponse.json({ error: "No se encontró el archivo" }, { status: 400 })
 
@@ -73,6 +76,7 @@ export async function POST(req: NextRequest) {
       source: "UPLOADED",
       prompt: null,
       tags: ["uploaded"],
+      ...(uploadCatId ? { categoryId: uploadCatId } : {}),
       tenantId: session.user.tenantId,
     },
   })
