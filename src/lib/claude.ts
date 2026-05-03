@@ -195,6 +195,67 @@ Responde ÚNICAMENTE con el JSON, sin texto adicional.`
   }
 }
 
+export async function generateCaptionForPhoto(params: {
+  brandVoice: {
+    industry: string
+    description: string
+    tone: string
+    keywords: string[]
+    products: string[]
+    targetAudience: string
+    language: string
+    customPrompt?: string | null
+  }
+  postType: string
+  contentType: string
+  platforms: string[]
+  imageDescription?: string
+}): Promise<{ caption: string; hashtags: string }> {
+  const { brandVoice, postType, contentType, platforms, imageDescription } = params
+
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 800,
+    system: `Eres experto en copywriting para redes sociales latinoamericanas. Creas captions auténticos, atractivos y orientados a conversión para fotos reales de clientes. Respondes SOLO en JSON válido.`,
+    messages: [
+      {
+        role: "user",
+        content: `Crea el pie de página (caption) y hashtags para un ${POST_TYPE_INSTRUCTIONS[postType] ?? postType} en ${platforms.join("/")} con FOTO PROPIA del negocio.
+
+NEGOCIO:
+- Industria: ${brandVoice.industry}
+- Descripción: ${brandVoice.description}
+- Tono: ${brandVoice.tone}
+- Productos: ${brandVoice.products.join(", ")}
+- Audiencia: ${brandVoice.targetAudience}
+- Idioma: ${brandVoice.language}
+${brandVoice.customPrompt ? `- Instrucción especial: ${brandVoice.customPrompt}` : ""}
+
+TIPO DE CONTENIDO: ${CONTENT_TYPE_INSTRUCTIONS[contentType] ?? contentType}
+${imageDescription ? `DESCRIPCIÓN DE LA FOTO: ${imageDescription}` : ""}
+
+Responde SOLO este JSON:
+{
+  "caption": "El texto del post con llamada a la acción (en ${brandVoice.language}, tono ${brandVoice.tone}). Para STORY máx 80 palabras.",
+  "hashtags": "#hashtag1 #hashtag2 ... (20-25 hashtags relevantes mezclando populares y de nicho)"
+}`,
+      },
+    ],
+  })
+
+  const text = message.content[0].type === "text" ? message.content[0].text : ""
+  try {
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error("No JSON")
+    return JSON.parse(match[0])
+  } catch {
+    return {
+      caption: text.slice(0, 500),
+      hashtags: `#${brandVoice.keywords.slice(0, 10).join(" #")}`,
+    }
+  }
+}
+
 export async function generateCommentReply(params: {
   brandVoice: { tone: string; description: string; language: string; autoReplyTone?: string | null }
   commentText: string
