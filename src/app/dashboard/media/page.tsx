@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useState, useCallback } from "react"
 import { Image, Video, Trash2, RefreshCw, Download, ChevronLeft, ChevronRight, Upload, X, FolderPlus, Folder } from "lucide-react"
@@ -49,7 +49,7 @@ export default function MediaPage() {
   const fetchCategories = useCallback(async () => {
     const res = await fetch("/api/media/categories")
     const data = await res.json()
-    setCategories(data ?? [])
+    setCategories(data.categories ?? [])
   }, [])
 
   useEffect(() => { fetchCategories() }, [fetchCategories])

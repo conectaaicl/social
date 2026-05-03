@@ -200,19 +200,7 @@ export default function AdsPage() {
         ))}
       </div>
 
-      {/* Google Ads config notice */}
-      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3">
-        <p className="text-sm text-blue-300 font-medium mb-0.5">Configuración Google Ads API</p>
-        <p className="text-xs text-blue-400/70">
-          Para publicar campañas reales agrega al .env del servidor:{" "}
-          <code className="bg-gray-900 px-1 rounded">GOOGLE_ADS_DEVELOPER_TOKEN</code>,{" "}
-          <code className="bg-gray-900 px-1 rounded">GOOGLE_ADS_CLIENT_ID</code>,{" "}
-          <code className="bg-gray-900 px-1 rounded">GOOGLE_ADS_CLIENT_SECRET</code>,{" "}
-          <code className="bg-gray-900 px-1 rounded">GOOGLE_ADS_REFRESH_TOKEN</code>,{" "}
-          <code className="bg-gray-900 px-1 rounded">GOOGLE_ADS_CUSTOMER_ID</code>.
-          Sin ellas las campañas se guardan como Borrador.
-        </p>
-      </div>
+
 
       {/* Create form */}
       {showForm && (

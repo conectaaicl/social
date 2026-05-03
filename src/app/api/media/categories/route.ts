@@ -53,7 +53,8 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.tenantId) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
-  const { id } = await req.json()
+  const id = new URL(req.url).searchParams.get("id")
+  if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 })
   await (prisma as any).mediaCategory.delete({ where: { id } })
   return NextResponse.json({ ok: true })
 }

@@ -82,6 +82,22 @@ model Tenant {
   anthropicApiKey String?
   groqApiKey      String?
   active      Boolean  @default(true)
+  domain      String?
+  notes       String?
+  whatsappPhone    String?
+  whatsappInstance String?
+  whatsappApiUrl   String?
+  whatsappApiKey   String?
+  metaAppId        String?
+  metaAppSecret    String?
+  falApiKey        String?
+  replicateApiToken String?
+  stabilityApiKey  String?
+  googleAdsClientId      String?
+  googleAdsClientSecret  String?
+  googleAdsRefreshToken  String?
+  googleAdsDeveloperToken String?
+  googleAdsCustomerId    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -94,6 +110,7 @@ model Tenant {
   postComments    PostComment[]
   adCampaigns     AdCampaign[]
   mediaCategories MediaCategory[]
+  affiliates       Affiliate[]
 
   @@map("tenants")
 }
@@ -106,8 +123,10 @@ model SocialAccount {
   accountId         String
   accountName       String
   accessToken       String
+  refreshToken      String?
   tokenExpiresAt    DateTime?
   pageId            String?       // Facebook Page ID
+  openId            String?       // TikTok open_id
   active            Boolean       @default(true)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -304,6 +323,10 @@ enum PlanType {
 enum Platform {
   INSTAGRAM
   FACEBOOK
+  TIKTOK
+  LINKEDIN
+  TWITTER
+  YOUTUBE
 }
 
 enum PostType {
@@ -363,4 +386,64 @@ model MediaCategory {
 
   @@unique([slug, tenantId])
   @@map("media_categories")
+}
+
+
+// ── Affiliate System ──────────────────────────────────────────────────────────
+
+enum AffiliateType {
+  REFERRAL
+  RESELLER
+  INFLUENCER
+}
+
+enum AffiliateStatus {
+  ACTIVE
+  PAUSED
+  SUSPENDED
+}
+
+enum ReferralStatus {
+  PENDING
+  CONVERTED
+  APPROVED
+  PAID
+  REJECTED
+}
+
+model Affiliate {
+  id          String          @id @default(cuid())
+  code        String          @unique
+  name        String
+  email       String
+  phone       String?
+  type        AffiliateType   @default(REFERRAL)
+  status      AffiliateStatus @default(ACTIVE)
+  commission  Float           @default(10)
+  notes       String?
+  tenantId    String
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  referrals   AffiliateReferral[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("affiliates")
+}
+
+model AffiliateReferral {
+  id            String         @id @default(cuid())
+  affiliateId   String
+  affiliate     Affiliate      @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  tenantId      String
+  referredName  String?
+  referredEmail String?
+  referredPhone String?
+  amount        Float          @default(0)
+  commission    Float          @default(0)
+  notes         String?
+  status        ReferralStatus @default(PENDING)
+  paidAt        DateTime?
+  createdAt     DateTime       @default(now())
+
+  @@map("affiliate_referrals")
 }

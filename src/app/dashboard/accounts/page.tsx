@@ -1,23 +1,34 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { Instagram, Facebook, Link2, Trash2, RefreshCw, CheckCircle2, AlertTriangle, Plus } from "lucide-react"
+import { Instagram, Facebook, Link2, Trash2, RefreshCw, CheckCircle2, AlertTriangle, Plus, Music2, Linkedin, Youtube } from "lucide-react"
 
 interface SocialAccount {
   id: string
-  platform: "INSTAGRAM" | "FACEBOOK"
+  platform: "INSTAGRAM" | "FACEBOOK" | "TIKTOK" | "LINKEDIN" | "YOUTUBE"
   accountId: string
   accountName: string
   pageId: string | null
+  openId: string | null
   active: boolean
   tokenExpiresAt: string | null
   createdAt: string
 }
 
+const PLATFORM_CONFIG = {
+  INSTAGRAM: { label: "Instagram",  icon: Instagram, connectUrl: "/api/social/connect",           iconClass: "text-pink-400",   color: "pink-400"   },
+  FACEBOOK:  { label: "Facebook",   icon: Facebook,  connectUrl: "/api/social/connect",           iconClass: "text-blue-400",   color: "blue-400"   },
+  TIKTOK:    { label: "TikTok",     icon: Music2,    connectUrl: "/api/social/tiktok/connect",    iconClass: "text-red-400",    color: "red-400"    },
+  LINKEDIN:  { label: "LinkedIn",   icon: Linkedin,  connectUrl: "/api/social/linkedin/connect",  iconClass: "text-sky-400",    color: "sky-400"    },
+  YOUTUBE:   { label: "YouTube",    icon: Youtube,   connectUrl: "/api/social/youtube/connect",   iconClass: "text-rose-400",   color: "rose-400"   },
+}
+
 function PlatformIcon({ platform }: { platform: string }) {
-  if (platform === "INSTAGRAM") return <Instagram className="w-5 h-5 text-pink-400" />
-  return <Facebook className="w-5 h-5 text-blue-400" />
+  const cfg = PLATFORM_CONFIG[platform as keyof typeof PLATFORM_CONFIG]
+  if (!cfg) return <Link2 className="w-5 h-5 text-gray-400" />
+  const Icon = cfg.icon
+  return <Icon className={`w-5 h-5 ${cfg.iconClass}`} />
 }
 
 function TokenStatus({ expiresAt }: { expiresAt: string | null }) {
@@ -25,10 +36,10 @@ function TokenStatus({ expiresAt }: { expiresAt: string | null }) {
   const daysLeft = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   if (daysLeft < 0) return <span className="text-red-400 text-xs flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Token expirado</span>
   if (daysLeft < 10) return <span className="text-yellow-400 text-xs flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Expira en {daysLeft}d</span>
-  return <span className="text-green-400 text-xs">Expira en {daysLeft} días</span>
+  return <span className="text-green-400 text-xs">Expira en {daysLeft} dias</span>
 }
 
-export default function AccountsPage() {
+function AccountsContent() {
   const searchParams = useSearchParams()
   const [accounts, setAccounts] = useState<SocialAccount[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,16 +61,16 @@ export default function AccountsPage() {
     fetchAccounts()
     const success = searchParams.get("success")
     const error = searchParams.get("error")
-    if (success) setBanner({ type: "success", message: `${success} cuenta(s) conectada(s) exitosamente` })
-    if (error === "cancelled") setBanner({ type: "error", message: "La conexión fue cancelada" })
+    if (success) setBanner({ type: "success", message: "Cuenta conectada exitosamente" })
+    if (error === "cancelled") setBanner({ type: "error", message: "La conexion fue cancelada" })
     else if (error) setBanner({ type: "error", message: decodeURIComponent(error) })
   }, [fetchAccounts, searchParams])
 
   async function handleDelete(id: string) {
-    if (!confirm("¿Desconectar esta cuenta? Los posts programados no podrán publicarse.")) return
+    if (!confirm("Desconectar esta cuenta?")) return
     setDeleting(id)
     try {
-      await fetch(`/api/social/accounts?id=${id}`, { method: "DELETE" })
+      await fetch("/api/social/accounts?id=" + id, { method: "DELETE" })
       setAccounts((a) => a.filter((ac) => ac.id !== id))
       setBanner({ type: "success", message: "Cuenta desconectada" })
     } finally {
@@ -67,125 +78,125 @@ export default function AccountsPage() {
     }
   }
 
-  const igAccounts = accounts.filter((a) => a.platform === "INSTAGRAM")
-  const fbAccounts = accounts.filter((a) => a.platform === "FACEBOOK")
+  const SECTIONS: Array<keyof typeof PLATFORM_CONFIG> = ["INSTAGRAM", "FACEBOOK", "TIKTOK", "LINKEDIN", "YOUTUBE"]
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-100">Cuentas conectadas</h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Conecta tu Instagram y Facebook para publicar automáticamente
-          </p>
-        </div>
-        <button
-          onClick={() => (window.location.href = "/api/social/connect")}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Conectar cuenta
-        </button>
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-gray-100">Cuentas conectadas</h1>
+        <p className="text-gray-500 mt-1 text-sm">Conecta tus redes sociales para publicar automaticamente</p>
       </div>
 
       {banner && (
-        <div
-          className={`mb-6 px-4 py-3 rounded-lg border text-sm flex items-center gap-2 ${
-            banner.type === "success"
-              ? "bg-green-500/10 border-green-500/20 text-green-400"
-              : "bg-red-500/10 border-red-500/20 text-red-400"
-          }`}
-        >
-          {banner.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+        <div className={"mb-6 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm " + (banner.type === "success" ? "bg-green-500/10 border-green-500/20 text-green-300" : "bg-red-500/10 border-red-500/20 text-red-300")}>
+          {banner.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
           {banner.message}
-          <button onClick={() => setBanner(null)} className="ml-auto opacity-60 hover:opacity-100">×</button>
+          <button onClick={() => setBanner(null)} className="ml-auto text-gray-500 hover:text-gray-300">x</button>
         </div>
       )}
 
       {loading ? (
-        <div className="card flex items-center justify-center py-16">
-          <RefreshCw className="w-6 h-6 text-indigo-400 animate-spin" />
-        </div>
-      ) : accounts.length === 0 ? (
-        <div className="card text-center py-16">
-          <Link2 className="w-10 h-10 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-gray-300 font-medium mb-2">Sin cuentas conectadas</h3>
-          <p className="text-gray-500 text-sm mb-6">
-            Conecta tu cuenta de Facebook para vincular Instagram y Facebook automáticamente
-          </p>
-          <button
-            onClick={() => (window.location.href = "/api/social/connect")}
-            className="btn-primary inline-flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Conectar con Facebook
-          </button>
-        </div>
+        <div className="flex justify-center py-20"><RefreshCw className="w-8 h-8 text-indigo-400 animate-spin" /></div>
       ) : (
-        <div className="space-y-4">
-          {[
-            { label: "Instagram", items: igAccounts, icon: Instagram, color: "pink" },
-            { label: "Facebook", items: fbAccounts, icon: Facebook, color: "blue" },
-          ].map(({ label, items, icon: Icon, color }) => (
-            <div key={label}>
-              <h2 className="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
-                <Icon className={`w-4 h-4 text-${color}-400`} />
-                {label} ({items.length})
-              </h2>
-              {items.length === 0 ? (
-                <div className="card border-dashed text-sm text-gray-500 py-4 text-center">
-                  Sin cuenta de {label}
+        <div className="space-y-6">
+          {SECTIONS.map((key) => {
+            const cfg = PLATFORM_CONFIG[key]
+            const items = accounts.filter((a) => a.platform === key)
+            return (
+              <div key={key} className="card">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className={`text-sm font-semibold flex items-center gap-2 text-${cfg.color}`}>
+                    <PlatformIcon platform={key} />
+                    {cfg.label}
+                    <span className="text-gray-600 font-normal">({items.length} cuenta{items.length !== 1 ? "s" : ""})</span>
+                  </h2>
+                  <button
+                    onClick={() => (window.location.href = cfg.connectUrl)}
+                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/20 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Conectar {cfg.label}
+                  </button>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {items.map((account) => (
-                    <div key={account.id} className="card flex items-center justify-between py-4 px-5">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
-                          <PlatformIcon platform={account.platform} />
+
+                {items.length === 0 ? (
+                  <div className="border border-dashed border-gray-700 rounded-xl p-6 text-center">
+                    <p className="text-gray-500 text-sm mb-3">No hay cuentas de {cfg.label} conectadas</p>
+                    <button
+                      onClick={() => (window.location.href = cfg.connectUrl)}
+                      className="inline-flex items-center gap-2 btn-primary text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Conectar {cfg.label}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {items.map((account) => (
+                      <div key={account.id} className="flex items-center justify-between bg-gray-800/50 rounded-xl px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 bg-gray-800 rounded-full flex items-center justify-center">
+                            <PlatformIcon platform={account.platform} />
+                          </div>
+                          <div>
+                            <p className="text-gray-100 font-medium text-sm">{account.accountName}</p>
+                            <p className="text-gray-500 text-xs">{account.openId ?? account.accountId}</p>
+                            <TokenStatus expiresAt={account.tokenExpiresAt} />
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-gray-100 font-medium text-sm">{account.accountName}</p>
-                          <p className="text-gray-500 text-xs">ID: {account.accountId}</p>
-                          <TokenStatus expiresAt={account.tokenExpiresAt} />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {account.active ? (
-                          <span className="badge-published">Activa</span>
-                        ) : (
-                          <span className="badge-failed">Inactiva</span>
-                        )}
-                        <button
-                          onClick={() => handleDelete(account.id)}
-                          disabled={deleting === account.id}
-                          className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                        >
-                          {deleting === account.id ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
+                        <div className="flex items-center gap-2">
+                          {account.active ? (
+                            <span className="text-xs bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full">Activa</span>
                           ) : (
-                            <Trash2 className="w-4 h-4" />
+                            <span className="text-xs bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded-full">Inactiva</span>
                           )}
-                        </button>
+                          <button
+                            onClick={() => handleDelete(account.id)}
+                            disabled={deleting === account.id}
+                            className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            {deleting === account.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
       <div className="mt-8 card border-gray-800 bg-gray-900/50">
-        <h3 className="text-sm font-medium text-gray-300 mb-3">Cómo funciona la conexión</h3>
-        <ol className="space-y-2 text-sm text-gray-500">
-          <li className="flex items-start gap-2"><span className="text-indigo-400 font-medium shrink-0">1.</span> Haz clic en "Conectar cuenta" — te redirigirá a Facebook</li>
-          <li className="flex items-start gap-2"><span className="text-indigo-400 font-medium shrink-0">2.</span> Autoriza el acceso a tu página de Facebook e Instagram Business</li>
-          <li className="flex items-start gap-2"><span className="text-indigo-400 font-medium shrink-0">3.</span> El sistema conectará ambas plataformas automáticamente</li>
-          <li className="flex items-start gap-2"><span className="text-indigo-400 font-medium shrink-0">4.</span> Instagram debe ser una cuenta Business o Creator vinculada a la página</li>
-        </ol>
+        <h3 className="text-sm font-medium text-gray-300 mb-3">Requisitos para conectar</h3>
+        <div className="grid gap-3 text-xs text-gray-500">
+          <div>
+            <p className="text-gray-400 font-medium mb-1">Instagram & Facebook</p>
+            <p>Necesitas una pagina de Facebook y una cuenta Business o Creator de Instagram vinculada a ella.</p>
+          </div>
+          <div>
+            <p className="text-gray-400 font-medium mb-1">TikTok</p>
+            <p>Cuenta TikTok Business o Creator. Se requieren credenciales de app en developers.tiktok.com.</p>
+          </div>
+          <div>
+            <p className="text-gray-400 font-medium mb-1">LinkedIn</p>
+            <p>Cuenta LinkedIn. Se requiere app en LinkedIn Developer Portal con permisos w_member_social.</p>
+          </div>
+          <div>
+            <p className="text-gray-400 font-medium mb-1">YouTube (Shorts)</p>
+            <p>Canal de YouTube. Solo se publican Reels/videos como YouTube Shorts. Requiere app en Google Cloud Console.</p>
+          </div>
+        </div>
       </div>
     </div>
+  )
+}
+
+export default function AccountsPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><RefreshCw className="w-8 h-8 text-indigo-400 animate-spin" /></div>}>
+      <AccountsContent />
+    </Suspense>
   )
 }

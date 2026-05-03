@@ -6,7 +6,7 @@ import { z } from "zod"
 const createSchema = z.object({
   type: z.enum(["FEED", "STORY", "CAROUSEL", "REEL"]),
   contentType: z.enum(["PRODUCTO", "PROYECTO", "TIP", "PROMO"]),
-  platform: z.array(z.enum(["INSTAGRAM", "FACEBOOK"])).min(1),
+  platform: z.array(z.enum(["INSTAGRAM", "FACEBOOK", "TIKTOK", "LINKEDIN", "YOUTUBE"])).min(1),
   caption: z.string().min(1),
   hashtags: z.string(),
   mediaUrls: z.array(z.string().url()),

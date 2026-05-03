@@ -7,6 +7,9 @@ import {
   publishFacebookPost,
   publishFacebookStory,
 } from "@/lib/meta"
+import { publishTikTokVideo, publishTikTokPhoto, refreshTikTokToken } from "@/lib/tiktok"
+import { publishLinkedInPost, refreshLinkedInToken } from "@/lib/linkedin"
+import { publishYouTubeShort, refreshYouTubeToken } from "@/lib/youtube"
 import { sendPostPublished, sendPostFailed } from "@/lib/mail"
 import { sendPostPublishedWhatsApp } from "@/lib/whatsapp"
 
@@ -21,7 +24,12 @@ export async function publishPost(postId: string, tenantId: string) {
   if (post.status === "PUBLISHING") return NextResponse.json({ error: "Publicando..." }, { status: 409 })
   if (!post.mediaUrls.length) return NextResponse.json({ error: "Sin media" }, { status: 400 })
 
-  await prisma.post.update({ where: { id: postId }, data: { status: "PUBLISHING" } })
+  // Atomic claim: only proceed if still SCHEDULED
+  const claimed = await prisma.post.updateMany({
+    where: { id: postId, tenantId, status: "SCHEDULED" },
+    data: { status: "PUBLISHING" },
+  })
+  if (claimed.count === 0) return NextResponse.json({ error: "Post ya está siendo procesado" }, { status: 409 })
 
   const mediaUrl = post.mediaUrls[0]
   const fullCaption = `${post.caption}\n\n${post.hashtags}`.trim()
@@ -47,6 +55,52 @@ export async function publishPost(postId: string, tenantId: string) {
           } else {
             metaId = await publishInstagramFeed(account.accountId, account.accessToken, mediaUrl, fullCaption)
           }
+        } else if (platform === "TIKTOK") {
+          // Auto-refresh TikTok token if expired
+          let tiktokToken = account.accessToken
+          if (account.tokenExpiresAt && account.tokenExpiresAt < new Date()) {
+            if (account.refreshToken) {
+              const refreshed = await refreshTikTokToken(account.refreshToken)
+              tiktokToken = refreshed.access_token
+              await prisma.socialAccount.update({
+                where: { id: account.id },
+                data: {
+                  accessToken: refreshed.access_token,
+                  refreshToken: refreshed.refresh_token,
+                  tokenExpiresAt: new Date(Date.now() + refreshed.expires_in * 1000),
+                },
+              })
+            }
+          }
+          if (post.type === "REEL" || post.mediaUrls[0]?.match(/\.mp4/i)) {
+            metaId = await publishTikTokVideo(tiktokToken, mediaUrl, post.caption.slice(0, 150) || "Nuevo video", { privacyLevel: "PUBLIC_TO_EVERYONE" })
+          } else {
+            metaId = await publishTikTokPhoto(tiktokToken, post.mediaUrls, post.caption.slice(0, 150) || "Nueva publicacion", fullCaption)
+          }
+        } else if (platform === "LINKEDIN") {
+          let liToken = account.accessToken
+          if (account.tokenExpiresAt && account.tokenExpiresAt < new Date() && account.refreshToken) {
+            const refreshed = await refreshLinkedInToken(account.refreshToken)
+            liToken = refreshed.access_token
+            await prisma.socialAccount.update({
+              where: { id: account.id },
+              data: { accessToken: refreshed.access_token, tokenExpiresAt: refreshed.expires_in ? new Date(Date.now() + refreshed.expires_in * 1000) : null },
+            })
+          }
+          const authorUrn = account.openId ?? ("urn:li:person:" + account.accountId)
+          metaId = await publishLinkedInPost(liToken, authorUrn, fullCaption, post.mediaUrls[0])
+        } else if (platform === "YOUTUBE") {
+          if (post.type !== "REEL") { platformErrors.push("YOUTUBE: solo se publican Reels/videos"); continue }
+          let ytToken = account.accessToken
+          if (account.tokenExpiresAt && account.tokenExpiresAt < new Date() && account.refreshToken) {
+            const refreshed = await refreshYouTubeToken(account.refreshToken)
+            ytToken = refreshed.access_token
+            await prisma.socialAccount.update({
+              where: { id: account.id },
+              data: { accessToken: refreshed.access_token, tokenExpiresAt: refreshed.expires_in ? new Date(Date.now() + refreshed.expires_in * 1000) : null },
+            })
+          }
+          metaId = await publishYouTubeShort(ytToken, post.mediaUrls[0], post.caption.slice(0, 100) || "Nuevo video", fullCaption)
         } else {
           if (post.type === "STORY") {
             metaId = await publishFacebookStory(account.pageId ?? account.accountId, account.accessToken, mediaUrl)

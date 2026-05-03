@@ -145,38 +145,6 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-
-      {/* ── Stats cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        {[
-          { label: "Publicados", value: d.published, icon: CheckCircle2, color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20", href: "/dashboard/posts" },
-          { label: "Programados", value: d.scheduled, icon: Clock, color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", href: "/dashboard/posts" },
-          { label: "Este mes", value: d.monthPosts, icon: Calendar, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20", href: "/dashboard/analytics" },
-          { label: "Fallidos", value: d.failed, icon: AlertCircle, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", href: "/dashboard/posts" },
-        ].map((c2) => (
-          <Link key={c2.label} href={c2.href} className={"card border " + c2.border + " flex items-center gap-4 hover:opacity-80 transition-opacity"}>
-            <div className={c2.bg + " " + c2.border + " border p-3 rounded-lg shrink-0"}><c2.icon className={"w-5 h-5 " + c2.color} /></div>
-            <div><p className="text-2xl font-bold text-gray-100">{c2.value}</p><p className="text-sm text-gray-500">{c2.label}</p></div>
-          </Link>
-        ))}
-      </div>
-
-      {/* ── Engagement metrics ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        {[
-          { label: "Alcance del mes", value: d.monthReach.toLocaleString("es-CL"), icon: Eye, color: "text-purple-400", bg: "bg-purple-500/10" },
-          { label: "Likes del mes", value: d.monthLikes.toLocaleString("es-CL"), icon: Heart, color: "text-pink-400", bg: "bg-pink-500/10" },
-          { label: "Comentarios", value: d.monthComments.toLocaleString("es-CL"), icon: MessageCircle, color: "text-teal-400", bg: "bg-teal-500/10" },
-          { label: "Engagement rate", value: d.engagementRate + "%", icon: TrendingUp, color: "text-yellow-400", bg: "bg-yellow-500/10" },
-        ].map((c2) => (
-          <div key={c2.label} className="card p-4 border border-transparent hover:border-gray-700 transition-colors">
-            <div className={c2.bg + " w-8 h-8 rounded-lg flex items-center justify-center mb-3"}><c2.icon className={"w-4 h-4 " + c2.color} /></div>
-            <p className="text-xl font-bold text-gray-100">{c2.value}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{c2.label}</p>
-          </div>
-        ))}
-      </div>
-
       {hasAccounts && isEmpty && (
         <div className="card border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/5 p-6">
           <div className="flex items-start gap-4">

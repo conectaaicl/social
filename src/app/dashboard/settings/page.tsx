@@ -77,7 +77,7 @@ export default function SettingsPage() {
     fetch("/api/settings/integrations")
       .then((r) => r.json())
       .then((data) => {
-        setValues(data ?? {})
+        setValues(data.masked ?? {})
         setLoading(false)
       })
   }, [])

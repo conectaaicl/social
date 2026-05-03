@@ -35,8 +35,18 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json()
   const data: Record<string, string | null> = {}
   for (const f of FIELDS) {
-    if (f in body) data[f] = body[f] === "" ? null : body[f]
+    if (f in body) {
+      const v = body[f]
+      if (v === "" || v === null) {
+        data[f] = null
+      } else if (typeof v === "string" && !v.includes("•")) {
+        // Only update if value is not masked (masked = unchanged)
+        data[f] = v
+      }
+    }
   }
-  await prisma.tenant.update({ where: { id: session.user.tenantId }, data })
+  if (Object.keys(data).length > 0) {
+    await prisma.tenant.update({ where: { id: session.user.tenantId }, data })
+  }
   return NextResponse.json({ ok: true })
 }

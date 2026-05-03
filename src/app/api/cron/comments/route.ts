@@ -46,7 +46,9 @@ export async function POST(req: NextRequest) {
 
     for (const post of recentPosts) {
       if (!post.metaPostId) continue
-      const token = tokenMap[post.platform[0]]
+      const metaPlatform = post.platform.find(p => p === "INSTAGRAM" || p === "FACEBOOK")
+      if (!metaPlatform) continue
+      const token = tokenMap[metaPlatform]
       if (!token) continue
 
       const metaComments = await getPostComments(post.metaPostId, token)
