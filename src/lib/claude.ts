@@ -226,6 +226,20 @@ Responde SOLO este JSON:
 }
 
 // ─── Hashtag Research ─────────────────────────────────────────────────────────
+// --- Caption for User Photo -------------------------------------------------------------------
+export async function generateCaptionForPhoto(params: {
+  brandVoice: Parameters<typeof generatePostContent>[0]["brandVoice"]
+  postType: string; contentType: string; platforms: string[]; imageDescription?: string; aiConfig?: AIConfig
+}): Promise<{ caption: string; hashtags: string }> {
+  const { brandVoice, postType, contentType, platforms, imageDescription, aiConfig } = params
+  const text = await llmWithConfig(aiConfig,
+    "Eres experto en copywriting para redes sociales latinoamericanas. Creas captions autenticos para fotos reales. Respondes SOLO en JSON valido.",
+    "Crea caption y hashtags para un " + (POST_TYPE_INSTRUCTIONS[postType] ?? postType) + " en " + platforms.join("/") + " con FOTO PROPIA del negocio. NEGOCIO: " + brandVoice.industry + " - " + brandVoice.description + ". Tono: " + brandVoice.tone + ". Productos: " + brandVoice.products.join(", ") + ". Audiencia: " + brandVoice.targetAudience + ". Idioma: " + brandVoice.language + (brandVoice.customPrompt ? ". Instruccion: " + brandVoice.customPrompt : "") + ". TIPO: " + (CONTENT_TYPE_INSTRUCTIONS[contentType] ?? contentType) + (imageDescription ? ". FOTO: " + imageDescription : "") + ". Responde SOLO: {"caption":"texto con CTA","hashtags":"#hash1 #hash2 (20-25 hashtags)"}",
+    800)
+  try { const m = text.match(/\{[\s\S]*\}/); if (!m) throw new Error("No JSON"); return JSON.parse(m[0]) }
+  catch { return { caption: text.slice(0, 500), hashtags: brandVoice.keywords.slice(0, 10).map(k => "#" + k).join(" ") } }
+}
+
 export async function researchHashtags(params: {
   brandVoice: Parameters<typeof generatePostContent>[0]["brandVoice"]
   contentType: string

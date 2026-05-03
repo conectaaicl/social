@@ -75,6 +75,47 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function PATCH(req: NextRequest) {
+  const session = await auth()
+  if (!session?.user?.tenantId) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+  }
+
+  try {
+    const body = await req.json()
+    const { scheduleSlots, timezone, autoPublish, autoReplyComments, contentMix } = body
+
+    await prisma.calendarConfig.upsert({
+      where: { tenantId: session.user.tenantId },
+      update: {
+        ...(scheduleSlots !== undefined && { scheduleSlots }),
+        ...(timezone !== undefined && { timezone }),
+        ...(autoPublish !== undefined && { autoPublish }),
+        ...(autoReplyComments !== undefined && { autoReplyComments }),
+        ...(contentMix !== undefined && { contentMix }),
+      },
+      create: {
+        tenantId: session.user.tenantId,
+        scheduleSlots: scheduleSlots ?? [
+          { time: "09:00", type: "feed" },
+          { time: "13:00", type: "story" },
+          { time: "19:00", type: "reel" },
+        ],
+        contentMix: contentMix ?? { PRODUCTO: 30, PROYECTO: 25, TIP: 25, PROMO: 20 },
+        postsPerDay: 3,
+        autoPublish: autoPublish ?? true,
+        autoReplyComments: autoReplyComments ?? false,
+        timezone: timezone ?? "America/Santiago",
+      },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("CalendarConfig update error:", error)
+    return NextResponse.json({ error: "Error interno" }, { status: 500 })
+  }
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.tenantId) {
