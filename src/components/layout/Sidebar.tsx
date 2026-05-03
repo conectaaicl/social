@@ -42,9 +42,11 @@ interface SidebarProps {
     email?: string | null
     role?: string | null
   }
+  tenantName?: string
+  tenantLogo?: string
 }
 
-export default function Sidebar({ user }: SidebarProps) {
+export default function Sidebar({ user, tenantName, tenantLogo }: SidebarProps) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
@@ -88,11 +90,20 @@ export default function Sidebar({ user }: SidebarProps) {
       {/* Logo */}
       <div className="p-5 border-b border-gray-800 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shrink-0">
-            <Zap className="w-4 h-4 text-white" />
-          </div>
+          {tenantLogo ? (
+            <img
+              src={tenantLogo}
+              alt={tenantName ?? "Logo"}
+              className="w-8 h-8 rounded-lg object-contain bg-white shrink-0"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+            />
+          ) : (
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shrink-0">
+              <Zap className="w-4 h-4 text-white" />
+            </div>
+          )}
           <div>
-            <p className="text-sm font-semibold text-gray-100">ConectaAI</p>
+            <p className="text-sm font-semibold text-gray-100">{tenantName ?? "ConectaAI"}</p>
             <p className="text-xs text-indigo-400 font-medium">Social</p>
           </div>
         </div>
@@ -142,10 +153,19 @@ export default function Sidebar({ user }: SidebarProps) {
       {/* ── MOBILE: top bar ─────────────────────────────────── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
-            <Zap className="w-3.5 h-3.5 text-white" />
-          </div>
-          <span className="text-sm font-semibold text-gray-100">ConectaAI Social</span>
+          {tenantLogo ? (
+            <img
+              src={tenantLogo}
+              alt={tenantName ?? "Logo"}
+              className="w-7 h-7 rounded-lg object-contain bg-white shrink-0"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+            />
+          ) : (
+            <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
+              <Zap className="w-3.5 h-3.5 text-white" />
+            </div>
+          )}
+          <span className="text-sm font-semibold text-gray-100">{tenantName ?? "ConectaAI"} Social</span>
         </div>
         <button
           onClick={() => setOpen(true)}

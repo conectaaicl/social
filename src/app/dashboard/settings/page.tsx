@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Save, RefreshCw, Clock, Zap, MessageCircle } from "lucide-react"
+import { Save, RefreshCw, Clock, Zap, MessageCircle, Building2 } from "lucide-react"
 
 interface CalendarConfig {
   postsPerDay: number
@@ -29,6 +29,10 @@ const DEFAULT_SLOTS = [
 ]
 
 export default function SettingsPage() {
+  const [logoUrl, setLogoUrl] = useState("")
+  const [logoSaving, setLogoSaving] = useState(false)
+  const [logoSaved, setLogoSaved] = useState(false)
+
   const [config, setConfig] = useState<CalendarConfig>({
     postsPerDay: 3,
     scheduleSlots: DEFAULT_SLOTS,
@@ -48,9 +52,25 @@ export default function SettingsPage() {
         if (data.calendarConfig) {
           setConfig((c) => ({ ...c, ...data.calendarConfig }))
         }
+        if (data.tenant?.logo) setLogoUrl(data.tenant.logo)
       })
       .finally(() => setLoading(false))
   }, [])
+
+  async function handleLogoSave() {
+    setLogoSaving(true)
+    try {
+      await fetch("/api/brand/logo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl }),
+      })
+      setLogoSaved(true)
+      setTimeout(() => setLogoSaved(false), 3000)
+    } finally {
+      setLogoSaving(false)
+    }
+  }
 
   function updateSlot(idx: number, field: "time" | "type", value: string) {
     setConfig((c) => {
@@ -77,24 +97,18 @@ export default function SettingsPage() {
   async function handleSave() {
     setSaving(true)
     try {
-      const brandRes = await fetch("/api/brand")
-      const brandData = await brandRes.json()
-      if (!brandData.brandVoice) {
-        alert("Primero configura tu marca en Mi Marca")
-        return
-      }
-
-      await fetch("/api/brand", {
-        method: "POST",
+      const res = await fetch("/api/brand", {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...brandData.brandVoice,
-          keywords: brandData.brandVoice.keywords ?? [],
-          products: brandData.brandVoice.products ?? [],
+          scheduleSlots: config.scheduleSlots,
+          timezone: config.timezone,
+          autoPublish: config.autoPublish,
+          autoReplyComments: config.autoReplyComments,
           contentMix: config.contentMix,
         }),
       })
-
+      if (!res.ok) throw new Error("Error al guardar")
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } finally {
@@ -110,8 +124,6 @@ export default function SettingsPage() {
     )
   }
 
-  const mixTotal = Object.values(config.contentMix).reduce((a, b) => a + b, 0)
-
   return (
     <div className="p-8 max-w-2xl mx-auto">
       <div className="mb-8">
@@ -120,6 +132,49 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-6">
+        {/* Brand Logo */}
+        <div className="card">
+          <h2 className="font-medium text-gray-100 mb-4 flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-indigo-400" />
+            Logo de tu marca
+          </h2>
+          <div className="flex items-start gap-4">
+            {/* Preview */}
+            <div className="w-16 h-16 rounded-xl border border-gray-700 bg-gray-900 flex items-center justify-center overflow-hidden shrink-0">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="Logo preview"
+                  className="w-full h-full object-contain p-1"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                />
+              ) : (
+                <span className="text-gray-600 text-xs text-center px-1">Sin logo</span>
+              )}
+            </div>
+            <div className="flex-1 space-y-2">
+              <input
+                className="input text-sm"
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                placeholder="https://terrablinds.cl/logo.png"
+                type="url"
+              />
+              <p className="text-xs text-gray-500">
+                URL pública de la imagen — aparece en el sidebar de navegación
+              </p>
+              <button
+                onClick={handleLogoSave}
+                disabled={logoSaving}
+                className="btn-primary text-sm py-2 px-4 flex items-center gap-2"
+              >
+                {logoSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                {logoSaved ? "¡Guardado!" : "Guardar logo"}
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Auto-publish */}
         <div className="card">
           <h2 className="font-medium text-gray-100 mb-4 flex items-center gap-2">
@@ -293,7 +348,7 @@ export default function SettingsPage() {
 
         <button
           onClick={handleSave}
-          disabled={saving || mixTotal !== 100}
+          disabled={saving}
           className="btn-primary w-full flex items-center justify-center gap-2"
         >
           {saving ? (
