@@ -351,6 +351,8 @@ export default function LeadsPage() {
   const [loading, setLoading]   = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<string | null>(null)
   const [searchQ, setSearchQ]   = useState('')
 
   const [phone, setPhone]   = useState('')
@@ -385,6 +387,20 @@ export default function LeadsPage() {
     return acc
   }, {} as Record<string, Lead[]>)
 
+  async function importOsw() {
+    setImporting(true)
+    setImportResult(null)
+    const res = await fetch('/api/osw/import', { method: 'POST' })
+    const data = await res.json()
+    if (res.ok) {
+      setImportResult('Importados: ' + data.created + ' nuevos, ' + data.updated + ' actualizados, ' + data.skipped + ' sin cambios (total ' + data.total + ')')
+      fetchLeads()
+    } else {
+      setImportResult('Error: ' + (data.error || 'desconocido'))
+    }
+    setImporting(false)
+  }
+
   return (
     <div className="h-full flex flex-col">
       {/* Top bar */}
@@ -397,7 +413,18 @@ export default function LeadsPage() {
           className="flex-1 max-w-xs bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-violet-500"
         />
         <div className="ml-auto flex gap-2">
+          {importResult && (
+            <span className="text-xs text-green-400 self-center">{importResult}</span>
+          )}
           <span className="text-xs text-gray-500 self-center">{leads.length} leads</span>
+          <button
+            onClick={importOsw}
+            disabled={importing}
+            className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm disabled:opacity-50"
+            title="Importar contactos de OmniFlow"
+          >
+            {importing ? 'Importando...' : 'OmniFlow'}
+          </button>
           <button
             onClick={() => setShowForm(true)}
             className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm"
