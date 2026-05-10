@@ -28,14 +28,30 @@ export async function getOswToken(): Promise<string> {
 
 async function oswFetch(path: string, opts: RequestInit = {}) {
   const token = await getOswToken()
-  return fetch(OSW_URL + path, {
+  const res = await fetch(OSW_URL + path, {
     ...opts,
+    redirect: 'manual',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ' + token,
       ...(opts.headers || {}),
     },
   })
+  // Follow 307/308 redirects while preserving Authorization header
+  if (res.status === 307 || res.status === 308) {
+    const location = res.headers.get('location')
+    if (location) {
+      return fetch(location, {
+        ...opts,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+          ...(opts.headers || {}),
+        },
+      })
+    }
+  }
+  return res
 }
 
 // ── Contacts ─────────────────────────────────────────────────────────────────
@@ -53,7 +69,7 @@ export interface OswContact {
 }
 
 export async function getOswContacts(limit = 100): Promise<OswContact[]> {
-  const res = await oswFetch('/crm/contacts/?limit=' + limit)
+  const res = await oswFetch('/crm/contacts?limit=' + limit)
   if (!res.ok) return []
   const data = await res.json()
   return data.contacts || data || []

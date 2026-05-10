@@ -221,7 +221,7 @@ export default function RadarPage() {
               <div key={p.id} style={{ background: '#0d0d18', border: `1px solid ${p.isViral ? '#7c3aed50' : '#1e1e2e'}`, borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 {p.mediaUrl && (
                   <div style={{ height: 180, background: '#050508', overflow: 'hidden', flexShrink: 0 }}>
-                    <img src={p.mediaUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                    <img src={p.mediaUrl ? '/api/img-proxy?url=' + encodeURIComponent(p.mediaUrl) : ''} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                   </div>
                 )}
                 <div style={{ padding: '14px 16px', flex: 1, display: 'flex', flexDirection: 'column' }}>

@@ -1,3 +1,29 @@
+import path from 'path'
+import fs from 'fs'
+import { randomBytes } from 'crypto'
+
+async function mirrorImage(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return url
+    const buf  = Buffer.from(await res.arrayBuffer())
+    const ext  = res.headers.get('content-type')?.includes('png') ? 'png' : 'jpg'
+    const name = randomBytes(12).toString('hex') + '.' + ext
+    const dir  = path.join(process.cwd(), 'public', 'uploads')
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(path.join(dir, name), buf)
+    return process.env.NEXTAUTH_URL
+      ? process.env.NEXTAUTH_URL.replace(/\/$/, '') + '/uploads/' + name
+      : '/uploads/' + name
+  } catch {
+    return url
+  }
+}
+
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
@@ -66,7 +92,7 @@ export async function GET(req: NextRequest) {
           update: { likesCount: l, commentsCount: c, viewsCount: v, isViral: iv, viralScore: s },
           create: {
             competitorId: comp.id, postId: post.id, caption: post.caption,
-            mediaUrl: post.displayUrl, mediaType: post.type, postUrl: post.url,
+            mediaUrl: await mirrorImage(post.displayUrl), mediaType: post.type, postUrl: post.url,
             likesCount: l, commentsCount: c, viewsCount: v, isViral: iv, viralScore: s,
             postedAt: post.timestamp ? new Date(post.timestamp) : null,
           },
