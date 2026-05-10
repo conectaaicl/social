@@ -50,6 +50,11 @@ export async function POST(req: NextRequest) {
 
   const aiConfig = buildTenantAIConfig(tenant)
   const apiKey = aiConfig.apiKey || process.env.ANTHROPIC_API_KEY || ''
+  if (!apiKey || apiKey === 'PENDIENTE_AGREGAR') {
+    return NextResponse.json({
+      error: 'API key de IA no configurada. Ve a Configuracion -> IA y agrega tu clave de Anthropic o configura Groq como proveedor.'
+    }, { status: 503 })
+  }
 
   const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

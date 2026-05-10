@@ -1,29 +1,3 @@
-import path from 'path'
-import fs from 'fs'
-import { randomBytes } from 'crypto'
-
-async function mirrorImage(url: string | null | undefined): Promise<string | null> {
-  if (!url) return null
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)' },
-      signal: AbortSignal.timeout(8000),
-    })
-    if (!res.ok) return url
-    const buf  = Buffer.from(await res.arrayBuffer())
-    const ext  = res.headers.get('content-type')?.includes('png') ? 'png' : 'jpg'
-    const name = randomBytes(12).toString('hex') + '.' + ext
-    const dir  = path.join(process.cwd(), 'public', 'uploads')
-    fs.mkdirSync(dir, { recursive: true })
-    fs.writeFileSync(path.join(dir, name), buf)
-    return process.env.NEXTAUTH_URL
-      ? process.env.NEXTAUTH_URL.replace(/\/$/, '') + '/uploads/' + name
-      : '/uploads/' + name
-  } catch {
-    return url
-  }
-}
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
@@ -62,8 +36,8 @@ export async function GET(req: NextRequest) {
   let fetched = 0, viralCount = 0
 
   try {
-    const res = await fetch(
-      `https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items?token=${process.env.APIFY_TOKEN}`,
+    const apifyRes = await fetch(
+      'https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items?token=' + process.env.APIFY_TOKEN,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -71,36 +45,66 @@ export async function GET(req: NextRequest) {
         signal: AbortSignal.timeout(120000),
       }
     )
-    if (!res.ok) throw new Error(`Apify ${res.status}`)
-    const profiles = await res.json()
+    if (!apifyRes.ok) throw new Error('Apify ' + apifyRes.status)
+    const profiles = await apifyRes.json()
 
     for (const profile of profiles) {
       const comp = competitors.find(c => c.handle === profile.username)
       if (!comp) continue
+
       await prisma.competitor.update({
         where: { id: comp.id },
         data: { followersCount: profile.followersCount, avatarUrl: profile.profilePicUrl },
       })
-      for (const post of (profile.latestPosts || [])) {
+
+      const posts = profile.latestPosts || []
+      if (!posts.length) continue
+
+      const postsData = posts.map((post: any) => {
         const l = post.likesCount || 0
         const c = post.commentsCount || 0
         const v = post.videoViewCount || 0
         const s = score(l, c, v)
         const iv = viral(l, c, v)
-        await prisma.competitorPost.upsert({
-          where: { competitorId_postId: { competitorId: comp.id, postId: post.id } },
-          update: { likesCount: l, commentsCount: c, viewsCount: v, isViral: iv, viralScore: s },
-          create: {
-            competitorId: comp.id, postId: post.id, caption: post.caption,
-            mediaUrl: await mirrorImage(post.displayUrl), mediaType: post.type, postUrl: post.url,
-            likesCount: l, commentsCount: c, viewsCount: v, isViral: iv, viralScore: s,
-            postedAt: post.timestamp ? new Date(post.timestamp) : null,
-          },
-        })
-        fetched++
         if (iv) viralCount++
+        fetched++
+        return {
+          competitorId:  comp.id,
+          postId:        post.id,
+          caption:       post.caption || null,
+          mediaUrl:      post.displayUrl || null,
+          mediaType:     post.type || null,
+          postUrl:       post.url || null,
+          likesCount:    l,
+          commentsCount: c,
+          viewsCount:    v,
+          isViral:       iv,
+          viralScore:    s,
+          postedAt:      post.timestamp ? new Date(post.timestamp) : null,
+        }
+      })
+
+      const existingIds = await prisma.competitorPost.findMany({
+        where: { competitorId: comp.id, postId: { in: postsData.map((p: any) => p.postId) } },
+        select: { postId: true },
+      })
+      const existingSet = new Set(existingIds.map((e: any) => e.postId))
+
+      const toCreate = postsData.filter((p: any) => !existingSet.has(p.postId))
+      const toUpdate = postsData.filter((p: any) =>  existingSet.has(p.postId))
+
+      if (toCreate.length) {
+        await prisma.competitorPost.createMany({ data: toCreate, skipDuplicates: true })
       }
+
+      await Promise.all(toUpdate.map((p: any) =>
+        prisma.competitorPost.update({
+          where: { competitorId_postId: { competitorId: comp.id, postId: p.postId } },
+          data: { likesCount: p.likesCount, commentsCount: p.commentsCount, viewsCount: p.viewsCount, isViral: p.isViral, viralScore: p.viralScore },
+        })
+      ))
     }
+
     return NextResponse.json({ ok: true, fetched, viral: viralCount })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
