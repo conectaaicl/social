@@ -107,6 +107,11 @@ model Tenant {
   cloudflareR2AccessKey    String?
   cloudflareR2SecretKey    String?
   cloudflareR2Bucket       String?
+  apifyToken               String?
+  flowApiKey               String?
+  flowSecretKey            String?
+  subscriptionExpiresAt    DateTime?
+  subscriptionOrderId      String?
   agencyId    String?  // si es cliente de una agencia, apunta al tenant agencia
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

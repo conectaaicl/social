@@ -119,6 +119,25 @@ const SECTIONS: IntegrationSection[] = [
     ] as IntegrationField[],
     note: "Cloudflare R2 sirve imagenes via CDN global con HTTPS garantizado. Gratis hasta 10GB/mes.",
   },
+  {
+    id: "apify",
+    title: "Apify (Web Scraping & Automatizacion)",
+    icon: "🕷",
+    fields: [
+      { key: "apifyToken", label: "API Token", type: "password", placeholder: "apify_api_..." },
+    ] as IntegrationField[],
+    note: "Apify extrae datos de redes sociales y sitios web. Usado para Radar de Competencia y analisis de mercado. ID de usuario: G2BZxrGwESMaabT90",
+  },
+  {
+    id: "flow",
+    title: "Flow (Pagos en linea)",
+    icon: "💳",
+    fields: [
+      { key: "flowApiKey", label: "API Key", type: "password", placeholder: "Flow API Key..." },
+      { key: "flowSecretKey", label: "Secret Key", type: "password", placeholder: "Flow Secret Key..." },
+    ] as IntegrationField[],
+    note: "Flow.cl — pasarela de pago chilena. Requerida para facturacion de planes y pagos de clientes.",
+  },
 ]
 
 export default function SettingsPage() {

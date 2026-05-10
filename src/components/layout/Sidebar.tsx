@@ -236,6 +236,14 @@ function IconRadar({ size = 16 }: { size?: number }) {
 }
 
 // ── Nav items with custom icon components ─────────────────────────────────────
+function IconBilling({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+    </svg>
+  )
+}
+
 function IconAgency({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -262,6 +270,7 @@ const navItems = [
   { href: '/dashboard/videos', label: 'Video IA', Icon: IconVideo },
     { href: '/dashboard/abtests', label: 'A/B Tests', Icon: IconABTest },
     { href: "/dashboard/autopilot", label: "Piloto Auto",   Icon: IconAutopilot },
+  { href: "/dashboard/billing",   label: "Plan & Billing", Icon: IconBilling },
   { href: "/dashboard/agency",    label: "Agencia",       Icon: IconAgency },
   { href: "/dashboard/settings",  label: "Configuración", Icon: IconSettings },
 ]

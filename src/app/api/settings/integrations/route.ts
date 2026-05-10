@@ -13,6 +13,7 @@ const FIELDS = [
   "pinterestAppId","pinterestAppSecret",
   "googleBusinessClientId","googleBusinessClientSecret",
   "cloudflareAccountId","cloudflareR2AccessKey","cloudflareR2SecretKey","cloudflareR2Bucket",
+  "apifyToken","flowApiKey","flowSecretKey",
 ] as const
 
 function mask(v: string | null) {
