@@ -128,6 +128,13 @@ function LeadDrawer({ leadId, onClose, onUpdated }: {
     setSyncing(false)
   }
 
+  async function deleteLead() {
+    if (!confirm('¿Eliminar este lead? Esta acción no se puede deshacer.')) return
+    await fetch('/api/leads/' + leadId, { method: 'DELETE' })
+    onClose()
+    onUpdated()
+  }
+
   async function addNote() {
     if (!noteText.trim()) return
     setSaving(true)
@@ -318,15 +325,22 @@ function LeadDrawer({ leadId, onClose, onUpdated }: {
         )}
 
       {/* WhatsApp CTA */}
-      <div className="p-4 border-t border-gray-700">
+      <div className="p-4 border-t border-gray-700 flex gap-2">
         <a
           href={'https://wa.me/' + lead.whatsappPhone.replace(/\D/g, '')}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
         >
-          <span>💬</span> Abrir en WhatsApp
+          <span>💬</span> WhatsApp
         </a>
+        <button
+          onClick={deleteLead}
+          className="px-4 py-2.5 bg-red-900/30 hover:bg-red-900/60 border border-red-700/50 text-red-400 rounded-lg text-sm transition-colors"
+          title="Eliminar lead"
+        >
+          🗑
+        </button>
       </div>
     </div>
   )
