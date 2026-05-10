@@ -89,8 +89,11 @@ function LeadDrawer({ leadId, onClose, onUpdated }: {
 }) {
   const [lead, setLead] = useState<LeadDetail | null>(null)
   const [noteText, setNoteText] = useState('')
-  const [scoring, setScoring] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [scoring, setScoring]   = useState(false)
+  const [saving, setSaving]     = useState(false)
+  const [syncing, setSyncing]   = useState(false)
+  const [syncMsg, setSyncMsg]   = useState<string | null>(null)
+  const [oswConvs, setOswConvs] = useState<any[]>([])
   const [editField, setEditField] = useState<string | null>(null)
   const [editVal, setEditVal] = useState('')
 
@@ -99,7 +102,13 @@ function LeadDrawer({ leadId, onClose, onUpdated }: {
     if (res.ok) setLead(await res.json())
   }
 
-  useEffect(() => { load() }, [leadId])
+  useEffect(() => {
+    load()
+    fetch('/api/leads/' + leadId + '/osw-sync')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setOswConvs(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [leadId])
 
   async function scoreWithAI() {
     setScoring(true)
@@ -107,6 +116,16 @@ function LeadDrawer({ leadId, onClose, onUpdated }: {
     await load()
     onUpdated()
     setScoring(false)
+  }
+
+  async function syncToOsw() {
+    setSyncing(true)
+    setSyncMsg(null)
+    const res = await fetch('/api/leads/' + leadId + '/osw-sync', { method: 'POST' })
+    const data = await res.json()
+    setSyncMsg(data.ok ? 'Sincronizado: ' + data.oswName : (data.message || 'No encontrado en OmniFlow'))
+    await load()
+    setSyncing(false)
   }
 
   async function addNote() {
@@ -166,15 +185,27 @@ function LeadDrawer({ leadId, onClose, onUpdated }: {
                 {lead.leadScore}
               </span>
               <span className="text-gray-500 text-sm">/100</span>
-              <button
-                onClick={scoreWithAI}
-                disabled={scoring}
-                className="ml-auto text-xs px-2 py-1 bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 rounded transition-colors disabled:opacity-50"
-              >
-                {scoring ? '…' : '⚡ IA'}
-              </button>
+              <div className="ml-auto flex gap-1">
+                <button
+                  onClick={scoreWithAI}
+                  disabled={scoring}
+                  className="text-xs px-2 py-1 bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 rounded transition-colors disabled:opacity-50"
+                  title="Score con IA"
+                >
+                  {scoring ? '…' : '⚡'}
+                </button>
+                <button
+                  onClick={syncToOsw}
+                  disabled={syncing}
+                  className="text-xs px-2 py-1 bg-green-600/20 hover:bg-green-600/40 text-green-300 rounded transition-colors disabled:opacity-50"
+                  title="Sincronizar a OmniFlow"
+                >
+                  {syncing ? '…' : '⇅'}
+                </button>
+              </div>
             </div>
             {lead.scoreReason && <p className="text-xs text-gray-400 mt-1 italic">{lead.scoreReason}</p>}
+            {syncMsg && <p className={'text-xs mt-1 ' + (syncMsg.startsWith('Sincronizado') ? 'text-green-400' : 'text-yellow-400')}>{syncMsg}</p>}
           </div>
           <div className="flex-1 bg-gray-800 rounded-lg p-3">
             <p className="text-xs text-gray-400 mb-1">Etapa</p>
@@ -265,6 +296,26 @@ function LeadDrawer({ leadId, onClose, onUpdated }: {
           </div>
         </div>
       </div>
+
+        {/* OmniFlow Conversations */}
+        {oswConvs.length > 0 && (
+          <div>
+            <h4 className="text-xs text-gray-400 uppercase tracking-wide mb-2">Conversaciones OmniFlow</h4>
+            <div className="space-y-2">
+              {oswConvs.map((c: any) => (
+                <div key={c.id} className="bg-gray-800 rounded-lg p-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={'text-xs px-1.5 py-0.5 rounded ' + (c.channel === 'whatsapp' ? 'bg-green-900/50 text-green-300' : 'bg-blue-900/50 text-blue-300')}>
+                      {c.channel}
+                    </span>
+                    <span className={'text-xs ' + (c.status === 'open' ? 'text-yellow-400' : 'text-gray-500')}>{c.status}</span>
+                  </div>
+                  <p className="text-xs text-gray-400 line-clamp-2">{c.last_message}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       {/* WhatsApp CTA */}
       <div className="p-4 border-t border-gray-700">
