@@ -6,9 +6,9 @@ import path from 'path'
 import { generateImage } from '@/lib/fal'
 import { buildTenantAIConfig } from '@/lib/ai-config'
 import { assembleVideo } from '@/lib/video-generator'
+import { uploadBufferToR2 } from '@/lib/r2'
 
-const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'videos')
-const UPLOADS_URL = '/uploads/videos'
+// Videos stored in R2
 
 const Schema = z.object({
   template: z.enum(['tips', 'antes_despues', 'showcase', 'problema_solucion']),
@@ -79,7 +79,7 @@ async function generateVideoBackground(
   tenant: any
 ) {
   const { mkdir } = await import('fs/promises')
-  await mkdir(UPLOADS_DIR, { recursive: true })
+  const { tmpdir } = await import('os')
 
   const bv = tenant?.brandVoice
   const brandName = tenant?.name || 'tu marca'
@@ -131,9 +131,8 @@ async function generateVideoBackground(
     } catch { /* use no hero image */ }
   }
 
-  const outputFile = id + '.mp4'
-  const outputPath = path.join(UPLOADS_DIR, outputFile)
-  const tmpDir = path.join(UPLOADS_DIR, 'tmp_' + id)
+  const outputPath = path.join(tmpdir(), id + '.mp4')
+  const tmpDir    = path.join(tmpdir(), 'tmp_' + id)
 
   await assembleVideo(
     { ...script, heroImageUrl },
@@ -142,6 +141,13 @@ async function generateVideoBackground(
     tmpDir
   )
 
+  // Upload MP4 to R2
+  const { readFile, unlink } = await import('fs/promises')
+  const mp4Buffer = await readFile(outputPath)
+  const r2Key     = 'videos/' + tenantId + '/' + id + '.mp4'
+  const outputUrl = await uploadBufferToR2(r2Key, mp4Buffer, 'video/mp4')
+  await unlink(outputPath).catch(() => {})
+
   // Estimate duration
   const totalSecs = 3 + (script.slides || []).reduce((a: number, s: any) => a + (s.duration || 4), 0) + 4
 
@@ -149,7 +155,7 @@ async function generateVideoBackground(
     where: { id },
     data: {
       status: 'done',
-      outputUrl: UPLOADS_URL + '/' + outputFile,
+      outputUrl,
       thumbnailUrl: heroImageUrl || null,
       duration: totalSecs,
       script,
