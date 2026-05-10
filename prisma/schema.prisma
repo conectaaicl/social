@@ -496,6 +496,12 @@ model SocialLead {
   leadScore     Int            @default(0)
   fuentePostId  String?
   lastActivity  DateTime?
+  email         String?
+  tags          String[]
+  closerName    String?
+  dealValue     Float?
+  scoreReason   String?
+  notes         LeadNote[]
   activities    LeadActivity[]
   tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt     DateTime       @default(now())
@@ -512,6 +518,15 @@ model LeadActivity {
   lead      SocialLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
   createdAt DateTime   @default(now())
   @@map("lead_activities")
+}
+
+model LeadNote {
+  id        String     @id @default(cuid())
+  leadId    String
+  body      String
+  lead      SocialLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  @@map("lead_notes")
 }
 
 model WinningPattern {

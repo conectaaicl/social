@@ -1,377 +1,421 @@
-"use client"
-
-import { useEffect, useState, useCallback } from "react"
-import { RefreshCw, Plus, X, MessageCircle, Star, Clock, ChevronDown } from "lucide-react"
+'use client'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Lead {
   id: string
   nombre: string | null
+  email: string | null
   whatsappPhone: string
   stage: string
   leadScore: number
-  fuentePostId: string | null
+  scoreReason: string | null
+  closerName: string | null
+  dealValue: number | null
+  tags: string[]
   lastActivity: string | null
-  activity_count: number
   createdAt: string
-  updatedAt: string
+  _count: { activities: number; notes: number }
+}
+
+interface LeadDetail extends Lead {
+  activities: { id: string; tipo: string; detalle: string | null; createdAt: string }[]
+  notes: { id: string; body: string; createdAt: string }[]
 }
 
 const STAGES = [
-  { key: "nuevo",      label: "Nuevo",      color: "border-gray-500",   bg: "bg-gray-500/10",   text: "text-gray-300" },
-  { key: "contactado", label: "Contactado", color: "border-blue-500",   bg: "bg-blue-500/10",   text: "text-blue-300" },
-  { key: "calificado", label: "Calificado", color: "border-indigo-500", bg: "bg-indigo-500/10", text: "text-indigo-300" },
-  { key: "propuesta",  label: "Propuesta",  color: "border-yellow-500", bg: "bg-yellow-500/10", text: "text-yellow-300" },
-  { key: "cliente",    label: "Cliente",    color: "border-green-500",  bg: "bg-green-500/10",  text: "text-green-300" },
-  { key: "perdido",    label: "Perdido",    color: "border-red-500",    bg: "bg-red-500/10",    text: "text-red-400" },
+  { key: 'nuevo',      label: 'Nuevo',      color: 'border-gray-500',   bg: 'bg-gray-500/10',   text: 'text-gray-300' },
+  { key: 'contactado', label: 'Contactado', color: 'border-blue-500',   bg: 'bg-blue-500/10',   text: 'text-blue-300' },
+  { key: 'calificado', label: 'Calificado', color: 'border-indigo-500', bg: 'bg-indigo-500/10', text: 'text-indigo-300' },
+  { key: 'propuesta',  label: 'Propuesta',  color: 'border-yellow-500', bg: 'bg-yellow-500/10', text: 'text-yellow-300' },
+  { key: 'cliente',    label: 'Cliente',    color: 'border-green-500',  bg: 'bg-green-500/10',  text: 'text-green-300' },
+  { key: 'perdido',    label: 'Perdido',    color: 'border-red-500',    bg: 'bg-red-500/10',    text: 'text-red-400' },
 ]
 
-function scoreColor(score: number) {
-  if (score >= 80) return "text-green-400 bg-green-500/10 border-green-500/20"
-  if (score >= 50) return "text-yellow-400 bg-yellow-500/10 border-yellow-500/20"
-  return "text-gray-400 bg-gray-500/10 border-gray-500/20"
+function ScoreBadge({ score, reason }: { score: number; reason?: string | null }) {
+  const cls = score >= 80 ? 'bg-green-500/20 text-green-300 border-green-500/30'
+    : score >= 50 ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
+    : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+  return (
+    <span title={reason || ''} className={'text-xs font-bold px-2 py-0.5 rounded-full border ' + cls}>
+      {score}
+    </span>
+  )
 }
 
 function fmtDate(d: string | null) {
-  if (!d) return "—"
-  return new Date(d).toLocaleDateString("es-CL", { day: "2-digit", month: "short" })
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })
 }
 
-function fmtPhone(p: string) {
-  return p.startsWith("+") ? p : "+" + p
-}
-
-interface NewLeadFormProps {
-  onCreated: () => void
-  onClose: () => void
-}
-
-function NewLeadForm({ onCreated, onClose }: NewLeadFormProps) {
-  const [phone, setPhone] = useState("")
-  const [nombre, setNombre] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!phone.trim()) { setError("El teléfono es requerido"); return }
-    setLoading(true)
-    try {
-      const res = await fetch("/api/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ whatsappPhone: phone.trim(), nombre: nombre.trim() || null }),
-      })
-      if (!res.ok) throw new Error("Error al crear lead")
-      onCreated()
-      onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error")
-    } finally {
-      setLoading(false)
-    }
-  }
-
+function LeadCard({ lead, onClick, onStageChange }: {
+  lead: Lead
+  onClick: () => void
+  onStageChange: (id: string, stage: string) => void
+}) {
+  const stage = STAGES.find(s => s.key === lead.stage)
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between p-5 border-b border-gray-800">
-          <h3 className="text-white font-semibold">Agregar Lead WhatsApp</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 p-1 rounded">
-            <X className="w-5 h-5" />
-          </button>
+    <div
+      onClick={onClick}
+      className={'bg-gray-800 border rounded-lg p-3 cursor-pointer hover:border-violet-500/50 transition-all mb-2 ' + (stage?.color || 'border-gray-700')}
+    >
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="min-w-0">
+          <p className="text-white text-sm font-medium truncate">{lead.nombre || lead.whatsappPhone}</p>
+          {lead.nombre && <p className="text-gray-500 text-xs">{lead.whatsappPhone}</p>}
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Teléfono WhatsApp *</label>
-            <input
-              type="text"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+56912345678"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Nombre (opcional)</label>
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Nombre del contacto"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 text-sm transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              {loading ? "Guardando..." : "Agregar Lead"}
-            </button>
-          </div>
-        </form>
+        <ScoreBadge score={lead.leadScore} reason={lead.scoreReason} />
+      </div>
+
+      {lead.closerName && (
+        <p className="text-xs text-gray-500 mb-1">👤 {lead.closerName}</p>
+      )}
+      {lead.dealValue && (
+        <p className="text-xs text-green-400 mb-1">💰 ${lead.dealValue.toLocaleString('es-CL')}</p>
+      )}
+
+      <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+        <span>📋 {lead._count.activities}</span>
+        <span>📝 {lead._count.notes}</span>
+        <span className="ml-auto">{fmtDate(lead.lastActivity || lead.createdAt)}</span>
       </div>
     </div>
   )
 }
 
-interface StageDropdownProps {
+function LeadDrawer({ leadId, onClose, onUpdated }: {
   leadId: string
-  currentStage: string
-  onMoved: () => void
-}
+  onClose: () => void
+  onUpdated: () => void
+}) {
+  const [lead, setLead] = useState<LeadDetail | null>(null)
+  const [noteText, setNoteText] = useState('')
+  const [scoring, setScoring] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [editField, setEditField] = useState<string | null>(null)
+  const [editVal, setEditVal] = useState('')
 
-function StageDropdown({ leadId, currentStage, onMoved }: StageDropdownProps) {
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-
-  async function moveTo(stage: string) {
-    if (stage === currentStage) { setOpen(false); return }
-    setLoading(true)
-    try {
-      await fetch("/api/leads/" + leadId, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage }),
-      })
-      onMoved()
-    } finally {
-      setLoading(false)
-      setOpen(false)
-    }
+  async function load() {
+    const res = await fetch('/api/leads/' + leadId)
+    if (res.ok) setLead(await res.json())
   }
 
+  useEffect(() => { load() }, [leadId])
+
+  async function scoreWithAI() {
+    setScoring(true)
+    await fetch('/api/leads/' + leadId + '/score', { method: 'POST' })
+    await load()
+    onUpdated()
+    setScoring(false)
+  }
+
+  async function addNote() {
+    if (!noteText.trim()) return
+    setSaving(true)
+    await fetch('/api/leads/' + leadId + '/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: noteText }),
+    })
+    setNoteText('')
+    await load()
+    setSaving(false)
+  }
+
+  async function deleteNote(noteId: string) {
+    await fetch('/api/leads/' + leadId + '/notes?noteId=' + noteId, { method: 'DELETE' })
+    await load()
+  }
+
+  async function patch(data: Record<string, any>) {
+    await fetch('/api/leads/' + leadId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    await load()
+    onUpdated()
+  }
+
+  if (!lead) return (
+    <div className="fixed inset-y-0 right-0 w-96 bg-gray-900 border-l border-gray-700 flex items-center justify-center z-50">
+      <p className="text-gray-500">Cargando…</p>
+    </div>
+  )
+
+  const stage = STAGES.find(s => s.key === lead.stage)
+
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        disabled={loading}
-        className="flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-400 transition-colors disabled:opacity-50"
-      >
-        <span>{loading ? "Moviendo..." : "Mover"}</span>
-        <ChevronDown className="w-3 h-3" />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-6 z-20 bg-gray-800 border border-gray-700 rounded-lg shadow-xl min-w-[130px] py-1">
-            {STAGES.filter((s) => s.key !== currentStage).map((s) => (
+    <div className="fixed inset-y-0 right-0 w-[420px] bg-gray-900 border-l border-gray-700 flex flex-col z-50 shadow-2xl">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-700">
+        <div>
+          <h3 className="text-white font-semibold">{lead.nombre || lead.whatsappPhone}</h3>
+          <p className="text-xs text-gray-400">{lead.whatsappPhone}</p>
+        </div>
+        <button onClick={onClose} className="text-gray-500 hover:text-white p-1 rounded">✕</button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Score + Stage */}
+        <div className="flex gap-3">
+          <div className="flex-1 bg-gray-800 rounded-lg p-3">
+            <p className="text-xs text-gray-400 mb-1">Score IA</p>
+            <div className="flex items-center gap-2">
+              <span className={'text-2xl font-bold ' + (lead.leadScore >= 80 ? 'text-green-400' : lead.leadScore >= 50 ? 'text-yellow-400' : 'text-gray-400')}>
+                {lead.leadScore}
+              </span>
+              <span className="text-gray-500 text-sm">/100</span>
               <button
-                key={s.key}
-                onClick={() => moveTo(s.key)}
-                className={"block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-700 transition-colors " + s.text}
+                onClick={scoreWithAI}
+                disabled={scoring}
+                className="ml-auto text-xs px-2 py-1 bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 rounded transition-colors disabled:opacity-50"
               >
-                {s.label}
+                {scoring ? '…' : '⚡ IA'}
               </button>
+            </div>
+            {lead.scoreReason && <p className="text-xs text-gray-400 mt-1 italic">{lead.scoreReason}</p>}
+          </div>
+          <div className="flex-1 bg-gray-800 rounded-lg p-3">
+            <p className="text-xs text-gray-400 mb-1">Etapa</p>
+            <select
+              value={lead.stage}
+              onChange={e => patch({ stage: e.target.value })}
+              className={'text-sm font-medium bg-transparent border-0 outline-none cursor-pointer ' + (stage?.text || 'text-gray-300')}
+            >
+              {STAGES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Fields */}
+        <div className="bg-gray-800 rounded-lg p-3 space-y-2">
+          {[
+            { key: 'closerName', label: '👤 Closer', type: 'text', placeholder: 'Nombre del closer' },
+            { key: 'dealValue',  label: '💰 Valor',  type: 'number', placeholder: '0' },
+            { key: 'email',      label: '✉ Email',   type: 'email', placeholder: 'email@ejemplo.com' },
+          ].map(field => (
+            <div key={field.key} className="flex items-center gap-2">
+              <span className="text-xs text-gray-400 w-20 shrink-0">{field.label}</span>
+              {editField === field.key ? (
+                <div className="flex gap-1 flex-1">
+                  <input
+                    type={field.type}
+                    value={editVal}
+                    onChange={e => setEditVal(e.target.value)}
+                    className="flex-1 bg-gray-700 border border-violet-500 rounded px-2 py-0.5 text-white text-xs outline-none"
+                    autoFocus
+                  />
+                  <button onClick={() => { patch({ [field.key]: field.type === 'number' ? Number(editVal) : editVal || null }); setEditField(null) }}
+                    className="text-xs text-green-400 hover:text-green-300">✓</button>
+                  <button onClick={() => setEditField(null)} className="text-xs text-gray-500">✕</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setEditField(field.key); setEditVal(String((lead as any)[field.key] || '')) }}
+                  className="flex-1 text-left text-xs text-white hover:text-violet-300 transition-colors truncate"
+                >
+                  {(lead as any)[field.key] ? String((lead as any)[field.key]) : <span className="text-gray-600">—</span>}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Notes */}
+        <div>
+          <h4 className="text-xs text-gray-400 uppercase tracking-wide mb-2">Notas</h4>
+          <div className="flex gap-2 mb-3">
+            <textarea
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              placeholder="Agregar nota…"
+              rows={2}
+              className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-violet-500 resize-none"
+            />
+            <button
+              onClick={addNote}
+              disabled={saving || !noteText.trim()}
+              className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-xs rounded-lg"
+            >
+              {saving ? '…' : '✓'}
+            </button>
+          </div>
+          <div className="space-y-2">
+            {lead.notes.map(n => (
+              <div key={n.id} className="bg-gray-800 rounded-lg p-2 flex gap-2">
+                <p className="text-xs text-gray-300 flex-1">{n.body}</p>
+                <button onClick={() => deleteNote(n.id)} className="text-gray-600 hover:text-red-400 text-xs">✕</button>
+              </div>
             ))}
           </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-interface LeadCardProps {
-  lead: Lead
-  onMoved: () => void
-}
-
-function LeadCard({ lead, onMoved }: LeadCardProps) {
-  return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 space-y-2 hover:border-gray-600 transition-colors">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-gray-100 truncate">
-            {lead.nombre || "Sin nombre"}
-          </p>
-          <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-            <MessageCircle className="w-3 h-3 shrink-0" />
-            {fmtPhone(lead.whatsappPhone)}
-          </p>
         </div>
-        <span className={"text-xs font-semibold px-1.5 py-0.5 rounded border " + scoreColor(lead.leadScore)}>
-          {lead.leadScore}
-        </span>
+
+        {/* Timeline */}
+        <div>
+          <h4 className="text-xs text-gray-400 uppercase tracking-wide mb-2">Actividad</h4>
+          <div className="space-y-1">
+            {lead.activities.slice(0, 15).map(a => (
+              <div key={a.id} className="flex gap-2 items-start">
+                <span className="text-gray-600 text-xs shrink-0 mt-0.5">{fmtDate(a.createdAt)}</span>
+                <p className="text-xs text-gray-400">{a.detalle || a.tipo}</p>
+              </div>
+            ))}
+            {lead.activities.length === 0 && <p className="text-xs text-gray-600">Sin actividad aún</p>}
+          </div>
+        </div>
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs text-gray-600">
-          <span className="flex items-center gap-0.5">
-            <Star className="w-3 h-3" />
-            {lead.activity_count} act.
-          </span>
-          <span className="flex items-center gap-0.5">
-            <Clock className="w-3 h-3" />
-            {fmtDate(lead.updatedAt)}
-          </span>
-        </div>
-        <StageDropdown leadId={lead.id} currentStage={lead.stage} onMoved={onMoved} />
+
+      {/* WhatsApp CTA */}
+      <div className="p-4 border-t border-gray-700">
+        <a
+          href={'https://wa.me/' + lead.whatsappPhone.replace(/\D/g, '')}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+        >
+          <span>💬</span> Abrir en WhatsApp
+        </a>
       </div>
     </div>
   )
 }
 
 export default function LeadsPage() {
-  const [leads, setLeads] = useState<Lead[]>([])
-  const [loading, setLoading] = useState(true)
-  const [activeFilter, setActiveFilter] = useState<string | null>(null)
-  const [showNew, setShowNew] = useState(false)
+  const [leads, setLeads]       = useState<Lead[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [searchQ, setSearchQ]   = useState('')
+
+  const [phone, setPhone]   = useState('')
+  const [nombre, setNombre] = useState('')
+  const [creating, setCreating] = useState(false)
 
   const fetchLeads = useCallback(async () => {
-    setLoading(true)
-    try {
-      const url = activeFilter ? "/api/leads?stage=" + activeFilter : "/api/leads"
-      const res = await fetch(url)
-      const data = await res.json()
-      setLeads(data.leads ?? [])
-    } finally {
-      setLoading(false)
-    }
-  }, [activeFilter])
+    const url = '/api/leads' + (searchQ ? '?q=' + encodeURIComponent(searchQ) : '')
+    const res = await fetch(url)
+    if (res.ok) setLeads(await res.json())
+    setLoading(false)
+  }, [searchQ])
 
   useEffect(() => { fetchLeads() }, [fetchLeads])
 
-  const leadsForStage = (stage: string) => leads.filter((l) => l.stage === stage)
-  const totalLeads = leads.length
-  const clientLeads = leads.filter((l) => l.stage === "cliente").length
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!phone.trim()) return
+    setCreating(true)
+    await fetch('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ whatsappPhone: phone, nombre: nombre || null }),
+    })
+    setPhone(''); setNombre(''); setShowForm(false)
+    await fetchLeads()
+    setCreating(false)
+  }
+
+  const leadsByStage = STAGES.reduce((acc, s) => {
+    acc[s.key] = leads.filter(l => l.stage === s.key)
+    return acc
+  }, {} as Record<string, Lead[]>)
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <div className="max-w-screen-2xl mx-auto px-4 py-6 space-y-6">
-
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white">CRM WhatsApp</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {totalLeads} leads totales &middot; {clientLeads} clientes
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={fetchLeads}
-              disabled={loading}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 text-sm transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={"w-4 h-4 " + (loading ? "animate-spin" : "")} />
-              Actualizar
-            </button>
-            <button
-              onClick={() => setShowNew(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Nuevo Lead
-            </button>
-          </div>
-        </div>
-
-        {/* Integration info banner */}
-        {totalLeads === 0 && !loading && (
-          <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-xl p-5">
-            <div className="flex items-start gap-3">
-              <MessageCircle className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-indigo-300 font-medium text-sm">Conecta tu WhatsApp para capturar leads automáticamente</p>
-                <p className="text-gray-500 text-xs mt-1">
-                  Los contactos que interactúen con tu cuenta de WhatsApp Business aparecerán aquí como leads.
-                  Configura tu instancia en Configuración &rarr; WhatsApp para activar la integración.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Stage filter pills */}
-        <div className="flex flex-wrap gap-2">
+    <div className="h-full flex flex-col">
+      {/* Top bar */}
+      <div className="flex items-center gap-3 p-4 border-b border-gray-700 shrink-0">
+        <h1 className="text-lg font-bold text-white">CRM Leads</h1>
+        <input
+          value={searchQ}
+          onChange={e => setSearchQ(e.target.value)}
+          placeholder="Buscar lead…"
+          className="flex-1 max-w-xs bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-violet-500"
+        />
+        <div className="ml-auto flex gap-2">
+          <span className="text-xs text-gray-500 self-center">{leads.length} leads</span>
           <button
-            onClick={() => setActiveFilter(null)}
-            className={"px-3 py-1.5 rounded-full text-xs font-medium border transition-colors " +
-              (activeFilter === null
-                ? "bg-indigo-600 border-indigo-500 text-white"
-                : "border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600")}
+            onClick={() => setShowForm(true)}
+            className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm"
           >
-            Todos ({leads.length})
+            + Lead
           </button>
-          {STAGES.map((s) => {
-            const count = leadsForStage(s.key).length
-            return (
-              <button
-                key={s.key}
-                onClick={() => setActiveFilter(activeFilter === s.key ? null : s.key)}
-                className={"px-3 py-1.5 rounded-full text-xs font-medium border transition-colors " +
-                  (activeFilter === s.key
-                    ? s.bg + " " + s.color + " " + s.text
-                    : "border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600")}
-              >
-                {s.label} ({count})
-              </button>
-            )
-          })}
         </div>
+      </div>
 
-        {/* Kanban board */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <RefreshCw className="w-6 h-6 text-indigo-400 animate-spin" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-            {STAGES.map((stage) => {
-              const stageLeads = leadsForStage(stage.key)
-              return (
-                <div key={stage.key} className="space-y-2">
-                  {/* Column header */}
-                  <div className={"flex items-center justify-between px-2 py-1.5 rounded-lg border " + stage.color + " " + stage.bg}>
-                    <span className={"text-xs font-semibold " + stage.text}>{stage.label}</span>
-                    <span className={"text-xs font-bold " + stage.text}>{stageLeads.length}</span>
-                  </div>
-                  {/* Lead cards */}
-                  <div className="space-y-2 min-h-[80px]">
-                    {stageLeads.length === 0 ? (
-                      <div className="border border-dashed border-gray-800 rounded-lg h-16 flex items-center justify-center">
-                        <span className="text-xs text-gray-700">Sin leads</span>
-                      </div>
-                    ) : (
-                      stageLeads.map((lead) => (
-                        <LeadCard key={lead.id} lead={lead} onMoved={fetchLeads} />
-                      ))
-                    )}
-                  </div>
+      {/* Create form modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <form onSubmit={handleCreate} className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-sm space-y-3">
+            <h3 className="text-white font-semibold">Agregar Lead</h3>
+            <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre (opcional)"
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500" />
+            <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+56912345678" required
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500" />
+            <div className="flex gap-2">
+              <button type="submit" disabled={creating}
+                className="flex-1 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded-lg text-sm">
+                {creating ? 'Creando…' : 'Crear'}
+              </button>
+              <button type="button" onClick={() => setShowForm(false)}
+                className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg text-sm">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Kanban */}
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center text-gray-500">Cargando…</div>
+      ) : (
+        <div className="flex-1 overflow-x-auto">
+          <div className="flex gap-3 p-4 h-full min-w-max">
+            {STAGES.map(s => (
+              <div key={s.key} className="w-60 shrink-0 flex flex-col">
+                <div className={'flex items-center gap-2 mb-2 px-1'}>
+                  <div className={'w-2 h-2 rounded-full ' + s.color.replace('border-', 'bg-')} />
+                  <span className={'text-xs font-semibold ' + s.text}>{s.label}</span>
+                  <span className="ml-auto text-xs text-gray-600">{leadsByStage[s.key]?.length || 0}</span>
                 </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Stats footer */}
-        {leads.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-            {[
-              { label: "Total Leads", value: totalLeads, color: "text-gray-100" },
-              { label: "En progreso", value: leads.filter((l) => ["contactado","calificado","propuesta"].includes(l.stage)).length, color: "text-indigo-400" },
-              { label: "Clientes", value: clientLeads, color: "text-green-400" },
-              { label: "Perdidos", value: leads.filter((l) => l.stage === "perdido").length, color: "text-red-400" },
-            ].map((stat) => (
-              <div key={stat.label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-                <p className="text-xs text-gray-500">{stat.label}</p>
-                <p className={"text-2xl font-bold mt-1 " + stat.color}>{stat.value}</p>
+                <div className="flex-1 overflow-y-auto">
+                  {(leadsByStage[s.key] || []).map(lead => (
+                    <LeadCard
+                      key={lead.id}
+                      lead={lead}
+                      onClick={() => setSelectedId(lead.id)}
+                      onStageChange={async (id, stage) => {
+                        await fetch('/api/leads/' + id, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ stage }),
+                        })
+                        fetchLeads()
+                      }}
+                    />
+                  ))}
+                  {(leadsByStage[s.key] || []).length === 0 && (
+                    <div className="border border-dashed border-gray-700 rounded-lg p-3 text-center text-xs text-gray-600">
+                      Vacío
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {showNew && (
-        <NewLeadForm onCreated={fetchLeads} onClose={() => setShowNew(false)} />
+      {/* Drawer */}
+      {selectedId && (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setSelectedId(null)} />
+          <LeadDrawer
+            leadId={selectedId}
+            onClose={() => setSelectedId(null)}
+            onUpdated={fetchLeads}
+          />
+        </>
       )}
     </div>
   )
