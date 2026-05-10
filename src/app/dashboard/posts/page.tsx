@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import {
   Sparkles, RefreshCw, Trash2, Send, Calendar, Instagram, Facebook,
   Image, Video, AlertCircle, ChevronLeft, ChevronRight,
-  Hash, Wand2, Upload, Plus, X, Camera,
+  Hash, Wand2, Upload, Plus, X, Camera, Pencil,
 } from "lucide-react"
+import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -67,12 +68,23 @@ const PLATFORM_ICONS: Record<string, React.ReactNode> = {
   FACEBOOK: <Facebook className="w-3.5 h-3.5 text-blue-400" />,
 }
 
+type ImageStyle = "catalogo" | "ugc" | "emocional" | "comparativo"
+
 type GenerateForm = {
   postType: PostType
   contentType: ContentType
   platforms: Array<"INSTAGRAM" | "FACEBOOK">
   scheduledAt: string
+  imageStyle: ImageStyle
+  carouselTemplate: "default" | "tips" | "antes_despues"
 }
+
+const IMAGE_STYLES: { id: ImageStyle; label: string; desc: string; emoji: string }[] = [
+  { id: "catalogo",  label: "Catálogo",   desc: "Fondo limpio, producto nítido",    emoji: "📸" },
+  { id: "ugc",       label: "UGC Real",   desc: "Estilo foto de usuario auténtica", emoji: "📱" },
+  { id: "emocional", label: "Emocional",  desc: "Cinematográfico, luz dramática",   emoji: "🎬" },
+  { id: "comparativo", label: "Antes/Después", desc: "Comparación visual clara",   emoji: "↔️" },
+]
 
 function todayAt(h: number, m = 0): string {
   const d = new Date()
@@ -107,6 +119,8 @@ export default function PostsPage() {
     contentType: "PRODUCTO",
     platforms: ["INSTAGRAM", "FACEBOOK"],
     scheduledAt: todayAt(19),
+    imageStyle: "catalogo",
+    carouselTemplate: "default",
   })
   const [genError, setGenError] = useState("")
   const [captionVariants, setCaptionVariants] = useState<CaptionVariant[]>([])
@@ -166,12 +180,20 @@ export default function PostsPage() {
     setGenerating(true)
     setGenError("")
     try {
-      const body: any = { ...genForm }
+      const isCarousel = genForm.postType === "CAROUSEL"
+      const body: any = { ...genForm, scheduledAt: new Date(genForm.scheduledAt).toISOString(), imageStyle: genForm.imageStyle }
       if (selectedVariant !== null && captionVariants[selectedVariant]) {
         body.customCaption = captionVariants[selectedVariant].caption
       }
       if (selectedHashtagSet) body.customHashtags = selectedHashtagSet
-      const res = await fetch("/api/posts/generate", {
+      const endpoint = isCarousel ? "/api/posts/carousel" : "/api/posts/generate"
+      if (isCarousel) {
+        body.template = genForm.carouselTemplate
+        body.contentType = genForm.contentType
+        body.platforms = genForm.platforms
+        body.slides = 6
+      }
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -341,7 +363,7 @@ export default function PostsPage() {
     setSelectedHashtagSet(null)
     setShowHashtags(false)
     setGenError("")
-    setGenForm({ postType: "FEED", contentType: "PRODUCTO", platforms: ["INSTAGRAM", "FACEBOOK"], scheduledAt: todayAt(19) })
+    setGenForm({ postType: "FEED", contentType: "PRODUCTO", platforms: ["INSTAGRAM", "FACEBOOK"], scheduledAt: todayAt(19), imageStyle: "catalogo", carouselTemplate: "default" })
     // Photo mode
     setUploadMode("ai")
     setPhotoPreview("")
@@ -364,8 +386,12 @@ export default function PostsPage() {
     if (!confirm("¿Publicar este post ahora?")) return
     setPublishing(postId)
     try {
-      await fetch(`/api/posts/${postId}/publish`, { method: "POST" })
+      const res = await fetch(`/api/posts/${postId}/publish`, { method: "POST" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { alert(data.error ?? "Error al publicar"); fetchPosts(); return }
       fetchPosts()
+    } catch (err: any) {
+      alert(err.message ?? "Error de red")
     } finally {
       setPublishing(null)
     }
@@ -526,6 +552,30 @@ export default function PostsPage() {
                   </div>
                 </div>
 
+                {genForm.postType === "CAROUSEL" && (
+                  <div>
+                    <label className="label">Plantilla de carrusel</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { id: "default", label: "Estándar", desc: "6 slides narrativos" },
+                        { id: "tips", label: "3 Tips", desc: "Educativo y guardable" },
+                        { id: "antes_despues", label: "Antes/Después", desc: "Transformación visual" },
+                      ] as const).map((t) => (
+                        <button key={t.id}
+                          onClick={() => setGenForm((f) => ({ ...f, carouselTemplate: t.id }))}
+                          className={`py-2 px-2 rounded-lg border text-xs transition-colors text-left ${
+                            genForm.carouselTemplate === t.id
+                              ? "border-indigo-500 bg-indigo-500/20 text-indigo-300"
+                              : "border-gray-700 text-gray-400 hover:border-gray-600"
+                          }`}>
+                          <div className="font-medium">{t.label}</div>
+                          <div className="text-[10px] opacity-70 mt-0.5">{t.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="label">Tipo de contenido</label>
                   <div className="grid grid-cols-2 gap-2">
@@ -582,6 +632,33 @@ export default function PostsPage() {
                   />
                 </div>
 
+
+                {/* Image Style Selector */}
+                <div>
+                  <label className="label flex items-center gap-1.5">
+                    <span>🎨</span>
+                    Estilo de imagen creativo
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {IMAGE_STYLES.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => setGenForm((f) => ({ ...f, imageStyle: s.id }))}
+                        className={`p-3 rounded-lg border text-left transition-colors ${
+                          genForm.imageStyle === s.id
+                            ? "border-purple-500 bg-purple-500/20 text-purple-200"
+                            : "border-gray-700 text-gray-400 hover:border-gray-600 hover:bg-gray-800/40"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span>{s.emoji}</span>
+                          <span className="text-xs font-semibold">{s.label}</span>
+                        </div>
+                        <p className="text-[10px] opacity-70 leading-tight">{s.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 {/* Caption A/B Variants */}
                 <div className="border border-gray-800 rounded-lg overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 bg-gray-800/40">
@@ -1044,7 +1121,7 @@ function PostCard({
 
   return (
     <div className="card flex flex-col gap-3 p-4">
-      <div className="relative aspect-square bg-gray-800 rounded-lg overflow-hidden">
+      <Link href={`/dashboard/posts/${post.id}`} className="block relative aspect-square bg-gray-800 rounded-lg overflow-hidden hover:opacity-90 transition-opacity">
         {previewUrl ? (
           <img src={previewUrl} alt="" className="w-full h-full object-cover" />
         ) : (
@@ -1063,7 +1140,7 @@ function PostCard({
         <span className={`absolute top-2 right-2 ${STATUS_BADGE[post.status]} text-xs px-2 py-0.5 rounded-full`}>
           {STATUS_LABEL[post.status]}
         </span>
-      </div>
+      </Link>
 
       <p className="text-sm text-gray-300 line-clamp-2 leading-relaxed">{post.caption}</p>
 
@@ -1094,6 +1171,10 @@ function PostCard({
       )}
 
       <div className="flex gap-2 mt-auto">
+        <Link href={`/dashboard/posts/${post.id}`}
+          className="p-2 rounded-lg text-gray-500 hover:text-brand-400 hover:bg-brand-500/10 transition-colors" title="Editar">
+          <Pencil className="w-4 h-4" />
+        </Link>
         {(post.status === "SCHEDULED" || post.status === "FAILED") && (
           <button
             onClick={onPublish}

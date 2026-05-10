@@ -138,9 +138,24 @@ export async function generatePostContent(params: {
   const { brandVoice, postType, contentType, platforms, aiConfig } = params
 
   const system = `Eres un experto en social media marketing para negocios latinoamericanos.
-Generas contenido auténtico, atractivo y orientado a conversión.
+Generas contenido auténtico, atractivo y de ALTO ENGAGEMENT.
 Respondes SIEMPRE en JSON válido con exactamente estos campos: caption, hashtags, imagePrompt, videoPrompt.
-Idioma del negocio: ${brandVoice.language}.`
+Idioma del negocio: ${brandVoice.language}.
+
+REGLAS DE FORMATO PARA CAPTION (fundamentales para el algoritmo de IG/FB):
+- La primera línea ES EL HOOK: máximo 8 palabras, impacta inmediatamente, usa emoji relevante al inicio
+- Estructura obligatoria con párrafos separados por línea en blanco:
+  [emoji] HOOK impactante (1 línea)
+
+  [emoji] Párrafo 1: contexto, historia o problema que resuelves (2-3 oraciones cortas)
+
+  [emoji] Párrafo 2: solución, beneficio concreto o prueba social (2-3 oraciones)
+
+  [emoji] CTA directa y específica: "Comenta ✅ si te interesa", "Escríbenos por DM", "Link en bio 👆", "Guarda este post ❤️"
+- Usa emojis variados, NO repetidos, relevantes al rubro del negocio
+- Para STORY: SOLO hook (1 línea) + CTA. Máx 15 palabras total.
+- Para REEL: hook + 1 párrafo + CTA. Máx 80 palabras.
+- NUNCA uses hashtags dentro del caption, van en campo separado`
 
   const user = `Crea contenido para ${POST_TYPE_INSTRUCTIONS[postType] ?? postType} para publicar en ${platforms.join(" y ")}.
 
@@ -156,9 +171,9 @@ ${brandVoice.customPrompt ? `- Instrucción adicional: ${brandVoice.customPrompt
 TIPO DE CONTENIDO: ${CONTENT_TYPE_INSTRUCTIONS[contentType] ?? contentType}
 
 Genera:
-1. "caption": El texto del post (en tono ${brandVoice.tone}, en ${brandVoice.language}). Incluye llamada a la acción. Para STORY máx 80 palabras.
-2. "hashtags": String con 20-25 hashtags relevantes separados por espacios (mezcla populares y de nicho).
-3. "imagePrompt": Prompt en INGLÉS para Flux Pro (IA generadora de imágenes de calidad comercial). DEBE ser extremadamente detallado y profesional. Incluir obligatoriamente: tipo de fotografía (editorial/product/lifestyle/architecture), iluminación específica (golden hour/studio softbox/natural window light/etc), composición (rule of thirds/symmetry/close-up/wide shot), paleta de colores, texturas, materiales, atmósfera, estilo visual (luxury/minimalist/warm/modern/etc), ángulo de cámara y profundidad de campo. Para STORY/REEL especifica "vertical portrait composition 9:16". Mínimo 60 palabras.
+1. "caption": El texto del post ESTRUCTURADO con el formato de párrafos indicado. Tono ${brandVoice.tone}. Con emojis variados y relevantes. CTA clara al final.
+2. "hashtags": String con 25 hashtags estratégicos separados por espacios: 8 muy populares (+1M posts, ej: #decoracion #hogar), 10 de nicho específico (50K-500K posts), 7 de marca/local/ciudad. Sin repetir. Empieza cada uno con #.
+3. "imagePrompt": REGLA CRÍTICA: El generador de imágenes NO conoce el negocio. Si no mencionas el producto EXACTO, generará algo incorrecto (ej: un sillón en vez de una cortina). OBLIGATORIO empezar con el nombre literal del producto: "${brandVoice.products[0] ?? brandVoice.industry}". Formato: "[nombre literal del producto del negocio], [tipo de fotografía: product/lifestyle/editorial], [iluminación: studio softbox/natural window light/golden hour], [composición: close-up/wide shot/rule of thirds], [paleta de colores], [materiales y texturas], [estilo: luxury/minimalist/modern], [ángulo de cámara]. Para STORY/REEL: vertical portrait composition 9:16. Mínimo 60 palabras en INGLÉS. NO menciones muebles genéricos (sofa/armchair/furniture) salvo que el producto SEA ese mueble."
 4. "videoPrompt": Para REEL: describe la secuencia de movimiento de cámara (slow dolly in, parallax, orbital shot), transiciones, ritmo visual y mood. Para otros tipos: campo vacío "".
 
 Responde ÚNICAMENTE con el JSON, sin texto adicional.`
@@ -168,12 +183,22 @@ Responde ÚNICAMENTE con el JSON, sin texto adicional.`
   try {
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) throw new Error("No JSON found")
-    return JSON.parse(jsonMatch[0]) as GeneratedContent
+    const result = JSON.parse(jsonMatch[0]) as GeneratedContent
+    // Safety: force primary product mention in imagePrompt
+    const primaryProduct = brandVoice.products[0] ?? brandVoice.industry
+    if (result.imagePrompt && primaryProduct) {
+      const firstWord = primaryProduct.toLowerCase().split(/\s+/)[0]
+      if (firstWord.length > 3 && !result.imagePrompt.toLowerCase().includes(firstWord)) {
+        result.imagePrompt = `${primaryProduct}, ${result.imagePrompt}`
+      }
+    }
+    return result
   } catch {
+    const primaryProduct = brandVoice.products[0] ?? brandVoice.industry
     return {
       caption: text.slice(0, 500),
       hashtags: `#${brandVoice.keywords.slice(0, 10).join(" #")}`,
-      imagePrompt: `Professional photo of ${brandVoice.products[0] ?? brandVoice.industry}, elegant interior design, natural lighting, high quality`,
+      imagePrompt: `${primaryProduct}, professional product photography, studio lighting, elegant interior design, sharp focus, high quality commercial photo`,
       videoPrompt: "Smooth camera pan revealing the product in a beautiful interior setting",
     }
   }
@@ -232,13 +257,26 @@ export async function generateCaptionForPhoto(params: {
   postType: string; contentType: string; platforms: string[]; imageDescription?: string; aiConfig?: AIConfig
 }): Promise<{ caption: string; hashtags: string }> {
   const { brandVoice, postType, contentType, platforms, imageDescription, aiConfig } = params
-  const text = await llmWithConfig(aiConfig,
-    "Eres experto en copywriting para redes sociales latinoamericanas. Creas captions autenticos para fotos reales. Respondes SOLO en JSON valido.",
-    "Crea caption y hashtags para un " + (POST_TYPE_INSTRUCTIONS[postType] ?? postType) + " en " + platforms.join("/") + " con FOTO PROPIA del negocio. NEGOCIO: " + brandVoice.industry + " - " + brandVoice.description + ". Tono: " + brandVoice.tone + ". Productos: " + brandVoice.products.join(", ") + ". Audiencia: " + brandVoice.targetAudience + ". Idioma: " + brandVoice.language + (brandVoice.customPrompt ? ". Instruccion: " + brandVoice.customPrompt : "") + ". TIPO: " + (CONTENT_TYPE_INSTRUCTIONS[contentType] ?? contentType) + (imageDescription ? ". FOTO: " + imageDescription : "") + ". Responde SOLO: {"caption":"texto con CTA","hashtags":"#hash1 #hash2 (20-25 hashtags)"}",
-    800)
-  try { const m = text.match(/\{[\s\S]*\}/); if (!m) throw new Error("No JSON"); return JSON.parse(m[0]) }
+  const parts: string[] = [
+    "Crea caption y hashtags para un " + (POST_TYPE_INSTRUCTIONS[postType] ?? postType) + " en " + platforms.join("/") + " con FOTO PROPIA.",
+    "Negocio: " + brandVoice.industry + " - " + brandVoice.description,
+    "Tono: " + brandVoice.tone + ". Productos: " + brandVoice.products.join(", "),
+    "Audiencia: " + brandVoice.targetAudience + ". Idioma: " + brandVoice.language,
+    ...(brandVoice.customPrompt ? ["Instruccion: " + brandVoice.customPrompt] : []),
+    "Tipo contenido: " + (CONTENT_TYPE_INSTRUCTIONS[contentType] ?? contentType),
+    ...(imageDescription ? ["Descripcion foto: " + imageDescription] : []),
+    "Responde SOLO JSON con campos: caption (ESTRUCTURADO: emoji+hook en linea 1, linea en blanco, emoji+parrafo1, linea en blanco, emoji+parrafo2, linea en blanco, emoji+CTA) y hashtags (25 hashtags: 8 populares +1M, 10 nicho 50K-500K, 7 marca/local. Sin hashtags en el caption).",
+  ]
+  const text = await llmWithConfig(
+    aiConfig,
+    "Eres experto en copywriting para redes sociales latinoamericanas con alto engagement. Respondes SOLO JSON valido. REGLAS: caption estructurado con emojis, parrafos separados por linea en blanco, hook en primera linea, CTA al final. NUNCA mezcles hashtags en el caption.",
+    parts.join("\n"),
+    1200
+  )
+  try { const m = text.match(/\{[\s\S]*\}/); if (!m) throw new Error("No JSON"); const p = JSON.parse(m[0]); if (Array.isArray(p.hashtags)) p.hashtags = p.hashtags.join(" "); return p }
   catch { return { caption: text.slice(0, 500), hashtags: brandVoice.keywords.slice(0, 10).map(k => "#" + k).join(" ") } }
 }
+
 
 export async function researchHashtags(params: {
   brandVoice: Parameters<typeof generatePostContent>[0]["brandVoice"]

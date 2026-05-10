@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { generatePostContent, type AIConfig } from "@/lib/claude"
-import { generateImage } from "@/lib/fal"
+import { buildTenantAIConfig } from "@/lib/ai-config"
+import { generateImage, type ImageCreativeStyle } from "@/lib/fal"
 import { animateImageToVideo } from "@/lib/replicate"
 import { applyBrandOverlayAndUpload } from "@/lib/brand-overlay"
 import { sendApprovalRequest } from "@/lib/approval-pipeline"
@@ -16,6 +17,7 @@ const generateSchema = z.object({
   customCaption: z.string().optional(),
   customHashtags: z.string().optional(),
   libraryImageUrl: z.string().url().optional(),
+  imageStyle: z.enum(["catalogo", "ugc", "emocional", "comparativo"]).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -28,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { postType, contentType, platforms, scheduledAt, customCaption, customHashtags, libraryImageUrl } = parsed.data
+  const { postType, contentType, platforms, scheduledAt, customCaption, customHashtags, libraryImageUrl, imageStyle } = parsed.data
 
   const brandVoice = await prisma.brandVoice.findUnique({
     where: { tenantId: session.user.tenantId },
@@ -47,16 +49,7 @@ export async function POST(req: NextRequest) {
   })
 
   // Build per-tenant AI config
-  const providerRaw = tenant?.aiProvider ?? "auto"
-  let aiApiKey: string | undefined
-  if (providerRaw === "anthropic") aiApiKey = tenant?.anthropicApiKey ?? undefined
-  else if (providerRaw === "openai") aiApiKey = tenant?.openaiApiKey ?? undefined
-  else if (providerRaw === "groq") aiApiKey = tenant?.groqApiKey ?? undefined
-
-  const aiConfig: AIConfig = {
-    provider: providerRaw as AIConfig["provider"],
-    apiKey: aiApiKey,
-  }
+  const aiConfig = buildTenantAIConfig(tenant)
 
   const socialAccount = await prisma.socialAccount.findFirst({
     where: { tenantId: session.user.tenantId, platform: platforms[0], active: true },
@@ -115,7 +108,13 @@ export async function POST(req: NextRequest) {
         brandedImageUrl = rawImageUrl
       }
     } else {
-      rawImageUrl = await generateImage(content.imagePrompt, postType)
+      // Build negative prompt: exclude common misidentification objects
+      const negativePrompt = [
+        'sofa', 'armchair', 'couch', 'furniture', 'chair', 'table', 'bed', 'lamp',
+        'blurry', 'distorted', 'low quality', 'watermark', 'text', 'logo',
+        'cartoon', 'anime', 'illustration', 'drawing', 'painting',
+      ].join(', ')
+      rawImageUrl = await generateImage(content.imagePrompt, postType, (imageStyle ?? "catalogo") as ImageCreativeStyle, negativePrompt)
       try {
         brandedImageUrl = await applyBrandOverlayAndUpload({
           imageUrl: rawImageUrl,

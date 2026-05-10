@@ -9,6 +9,23 @@ import { clsx } from "clsx"
 
 // ── Colorful SVG icons for each nav item ─────────────────────────────────────
 
+
+function IconVideo({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-3.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-1.5A1.125 1.125 0 0 1 18 18.375M3.375 5.625c0-.621.504-1.125 1.125-1.125h15c.621 0 1.125.504 1.125 1.125m-17.25 0h1.5m-1.5 0v1.5m17.25-1.5v1.5m0-1.5h-1.5m-15 0h13.5" />
+    </svg>
+  )
+}
+
+function IconABTest({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 1-6.23-.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0 1 12 21a48.25 48.25 0 0 1-8.135-.687c-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+    </svg>
+  )
+}
+
 function IconDashboard({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -166,7 +183,49 @@ function IconAffiliates({ size = 16 }: { size?: number }) {
     </svg>
   )
 }
+function IconLeads({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="#25d366" fillOpacity="0.2" stroke="#25d366" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="9" cy="12" r="1" fill="#4ade80" />
+      <circle cx="12" cy="12" r="1" fill="#4ade80" />
+      <circle cx="15" cy="12" r="1" fill="#4ade80" />
+    </svg>
+  )
+}
 
+
+
+function IconAutopilot({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" fill="#8b5cf6" fillOpacity="0.15" stroke="#8b5cf6" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="3" fill="#8b5cf6" fillOpacity="0.5" />
+      <circle cx="12" cy="12" r="1.5" fill="#a78bfa" />
+      <line x1="12" y1="3" x2="12" y2="6" stroke="#8b5cf6" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="12" y1="18" x2="12" y2="21" stroke="#8b5cf6" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="3" y1="12" x2="6" y2="12" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="18" y1="12" x2="21" y2="12" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="6.5" cy="6.5" r="1" fill="#c4b5fd" />
+      <circle cx="17.5" cy="6.5" r="1" fill="#c4b5fd" />
+      <circle cx="6.5" cy="17.5" r="1" fill="#c4b5fd" />
+      <circle cx="17.5" cy="17.5" r="1" fill="#c4b5fd" />
+    </svg>
+  )
+}
+
+function IconRadar({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke="#a78bfa" strokeWidth="1.5" strokeOpacity="0.25"/>
+      <circle cx="12" cy="12" r="5" stroke="#a78bfa" strokeWidth="1.5" strokeOpacity="0.45"/>
+      <circle cx="12" cy="12" r="1.5" fill="#a78bfa"/>
+      <line x1="12" y1="3" x2="12" y2="12" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="12" y1="12" x2="18.5" y2="8" stroke="#a78bfa" strokeWidth="1" strokeLinecap="round" strokeOpacity="0.5"/>
+      <circle cx="17" cy="7" r="1.5" fill="#ef4444" fillOpacity="0.85"/>
+    </svg>
+  )
+}
 
 // ── Nav items with custom icon components ─────────────────────────────────────
 const navItems = [
@@ -181,6 +240,11 @@ const navItems = [
   { href: "/dashboard/brand",     label: "Mi Marca",      Icon: IconBrand },
   { href: "/dashboard/ads",       label: "Google Ads",    Icon: IconAds },
   { href: "/dashboard/affiliates", label: "Afiliados",     Icon: IconAffiliates },
+  { href: "/dashboard/leads",     label: "CRM WhatsApp", Icon: IconLeads },
+  { href: "/dashboard/radar",     label: "Radar",         Icon: IconRadar },
+  { href: '/dashboard/videos', label: 'Video IA', Icon: IconVideo },
+    { href: '/dashboard/abtests', label: 'A/B Tests', Icon: IconABTest },
+    { href: "/dashboard/autopilot", label: "Piloto Auto",   Icon: IconAutopilot },
   { href: "/dashboard/settings",  label: "Configuración", Icon: IconSettings },
 ]
 

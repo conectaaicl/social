@@ -13,15 +13,17 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date()
-  const windowStart = new Date(now.getTime() - 8 * 60 * 1000) // 8 min before
 
+  // Fetch all SCHEDULED posts due now or overdue (no upper window limit)
   const duePosts = await prisma.post.findMany({
     where: {
       status: "SCHEDULED",
-      scheduledAt: { lte: now, gte: windowStart },
-      tenant: { active: true, calendar: { autoPublish: true } },
+      scheduledAt: { lte: now },
+      tenant: { active: true },
     },
-    select: { id: true, tenantId: true },
+    select: { id: true, tenantId: true, scheduledAt: true },
+    orderBy: { scheduledAt: "asc" },
+    take: 20, // safety cap: max 20 per run
   })
 
   const results: Array<{ postId: string; success: boolean; error?: string }> = []

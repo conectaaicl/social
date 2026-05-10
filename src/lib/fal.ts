@@ -4,8 +4,8 @@ import path from "path"
 
 const FAL_KEY = process.env.FAL_KEY ?? ""
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN ?? ""
-const STATIC_IMG_DIR = "/var/www/ig_static"
-const STATIC_IMG_URL = `http://${process.env.SERVER_IP ?? "62.169.17.214"}:8181`
+const STATIC_IMG_DIR = path.join(process.cwd(), "public", "uploads")
+const STATIC_IMG_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://social.conectaai.cl") + "/uploads"
 
 type ImageSize = "square_hd" | "portrait_16_9" | "landscape_16_9"
 
@@ -14,29 +14,64 @@ export function imageSizeForPostType(postType: string): ImageSize {
   return "square_hd"
 }
 
-function buildEnhancedPrompt(basePrompt: string, postType: string): string {
-  const styleBase = [
-    "ultra high resolution commercial photography",
-    "professional product photography",
-    "shallow depth of field",
-    "studio lighting with soft natural fill light",
-    "sharp focus on subject",
-    "beautiful bokeh background",
-    "color graded",
+export type ImageCreativeStyle = "catalogo" | "ugc" | "emocional" | "comparativo"
+
+const STYLE_MODIFIERS: Record<ImageCreativeStyle, string> = {
+  catalogo: [
+    "professional product catalog photography",
+    "clean white or neutral background",
+    "studio lighting with soft shadows",
+    "sharp focus on product",
+    "high-end commercial photography",
+    "color accurate",
     "editorial quality",
     "8K resolution",
     "photorealistic",
-  ].join(", ")
+  ].join(", "),
+  ugc: [
+    "user generated content style",
+    "shot on smartphone camera",
+    "authentic candid lifestyle photography",
+    "natural ambient lighting",
+    "real home or outdoor environment",
+    "raw and genuine feel",
+    "vertical portrait composition",
+    "Instagram UGC aesthetic",
+  ].join(", "),
+  emocional: [
+    "cinematic emotional photography",
+    "dramatic golden hour lighting",
+    "rich warm color palette",
+    "shallow depth of field",
+    "storytelling composition",
+    "atmospheric mood",
+    "film-grain texture",
+    "8K photorealistic",
+    "beautiful bokeh",
+  ].join(", "),
+  comparativo: [
+    "split composition before and after",
+    "clear visual comparison layout",
+    "professional product photography",
+    "clean and organized",
+    "high contrast between sections",
+    "infographic-style clarity",
+    "brand-aligned color scheme",
+    "photorealistic",
+  ].join(", "),
+}
 
+function buildEnhancedPrompt(basePrompt: string, postType: string, style: ImageCreativeStyle = "catalogo"): string {
+  const styleModifier = STYLE_MODIFIERS[style]
   const vertical = postType === "STORY" || postType === "REEL"
   const aspectNote = vertical
     ? "vertical 9:16 composition, portrait orientation"
     : "square 1:1 composition, centered subject"
 
-  return `${basePrompt}. ${styleBase}. ${aspectNote}.`
+  return `${basePrompt}. ${styleModifier}. ${aspectNote}.`
 }
 
-async function replicateGenerateImage(prompt: string, postType: string): Promise<string> {
+async function replicateGenerateImage(prompt: string, postType: string, negativePrompt?: string): Promise<string> {
   const isVertical = postType === "STORY" || postType === "REEL"
   const aspectRatio = isVertical ? "9:16" : "1:1"
 
@@ -55,6 +90,7 @@ async function replicateGenerateImage(prompt: string, postType: string): Promise
         output_quality: 90,
         num_outputs: 1,
         go_fast: true,
+        ...(negativePrompt ? { negative_prompt: negativePrompt } : {}),
       },
     }),
   })
@@ -110,8 +146,8 @@ async function unsplashFallback(prompt: string, postType: string): Promise<strin
   return `https://images.unsplash.com/${keywordMap.default}?w=1080&h=1080&fit=crop&q=80`
 }
 
-export async function generateImage(prompt: string, postType: string): Promise<string> {
-  const enhancedPrompt = buildEnhancedPrompt(prompt, postType)
+export async function generateImage(prompt: string, postType: string, style: ImageCreativeStyle = "catalogo", negativePrompt?: string): Promise<string> {
+  const enhancedPrompt = buildEnhancedPrompt(prompt, postType, style)
 
   // 1. Try fal.ai
   if (FAL_KEY) {
@@ -130,6 +166,7 @@ export async function generateImage(prompt: string, postType: string): Promise<s
             num_images: 1,
             enable_safety_checker: false,
             output_format: "jpeg",
+            ...(negativePrompt ? { negative_prompt: negativePrompt } : {}),
           }),
         })
         if (!res.ok) continue
@@ -144,7 +181,7 @@ export async function generateImage(prompt: string, postType: string): Promise<s
   if (REPLICATE_TOKEN) {
     try {
       console.log("fal.ai unavailable, trying Replicate FLUX...")
-      const url = await replicateGenerateImage(enhancedPrompt, postType)
+      const url = await replicateGenerateImage(enhancedPrompt, postType, negativePrompt)
       if (url) return url
     } catch (e: any) {
       console.warn("Replicate failed:", e.message)

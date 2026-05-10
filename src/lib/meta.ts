@@ -8,11 +8,31 @@ export interface MetaPage {
   instagram_business_account?: { id: string }
 }
 
-async function metaFetch(url: string, options?: RequestInit) {
-  const res = await fetch(url, options)
-  const data = await res.json()
-  if (data.error) throw new Error(`Meta API: ${data.error.message} (code ${data.error.code})`)
-  return data
+// Retryable error codes from Meta API
+const RETRYABLE_META_CODES = new Set([1, 2, 4, 17, 32, 613, 500, 503])
+const THROTTLE_CODES = new Set([4, 17, 32, 613])
+
+async function metaFetch(url: string, options?: RequestInit, retries = 3): Promise<any> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const res = await fetch(url, options)
+    const data = await res.json()
+    if (!data.error) return data
+
+    const code = data.error.code as number
+    const isRetryable = RETRYABLE_META_CODES.has(code) || res.status >= 500
+    const isThrottle = THROTTLE_CODES.has(code)
+
+    if (isRetryable && attempt < retries) {
+      const delay = isThrottle
+        ? 60_000
+        : Math.min(2 ** attempt * 1000, 30_000)
+      console.warn("Meta API code " + code + " (attempt " + attempt + "/" + retries + "), retrying in " + delay + "ms")
+      await new Promise((r) => setTimeout(r, delay))
+      continue
+    }
+
+    throw new Error("Meta API: " + data.error.message + " (code " + code + ")")
+  }
 }
 
 export async function exchangeForLongLivedToken(shortToken: string): Promise<string> {

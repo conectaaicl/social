@@ -51,8 +51,8 @@ async function checkReplicate(): Promise<{ status: "ok" | "error" | "warn"; labe
   }
 }
 
-async function checkGroq(): Promise<{ status: "ok" | "error" | "warn"; label: string }> {
-  const key = process.env.GROQ_API_KEY
+async function checkGroq(tenantKey?: string | null): Promise<{ status: "ok" | "error" | "warn"; label: string }> {
+  const key = tenantKey || process.env.GROQ_API_KEY
   if (!key) return { status: "error", label: "Sin API key" }
   try {
     const res = await withTimeout(
@@ -61,7 +61,7 @@ async function checkGroq(): Promise<{ status: "ok" | "error" | "warn"; label: st
       }),
       TIMEOUT
     )
-    if (res.ok) return { status: "ok", label: "Activo" }
+    if (res.ok) return { status: "ok", label: tenantKey ? "Activo (cuenta propia)" : "Activo" }
     if (res.status === 401) return { status: "error", label: "Key inválida" }
     return { status: "warn", label: `Error ${res.status}` }
   } catch {
@@ -69,8 +69,8 @@ async function checkGroq(): Promise<{ status: "ok" | "error" | "warn"; label: st
   }
 }
 
-async function checkOpenAI(): Promise<{ status: "ok" | "error" | "warn"; label: string }> {
-  const key = process.env.OPENAI_API_KEY
+async function checkOpenAI(tenantKey?: string | null): Promise<{ status: "ok" | "error" | "warn"; label: string }> {
+  const key = tenantKey || process.env.OPENAI_API_KEY
   if (!key) return { status: "error", label: "Sin API key" }
   try {
     const res = await withTimeout(
@@ -79,7 +79,7 @@ async function checkOpenAI(): Promise<{ status: "ok" | "error" | "warn"; label: 
       }),
       TIMEOUT
     )
-    if (res.ok) return { status: "ok", label: "Activo" }
+    if (res.ok) return { status: "ok", label: tenantKey ? "Activo (cuenta propia)" : "Activo" }
     if (res.status === 401) return { status: "error", label: "Key inválida" }
     return { status: "warn", label: `Error ${res.status}` }
   } catch {
@@ -87,8 +87,8 @@ async function checkOpenAI(): Promise<{ status: "ok" | "error" | "warn"; label: 
   }
 }
 
-async function checkAnthropic(): Promise<{ status: "ok" | "error" | "warn"; label: string }> {
-  const key = process.env.ANTHROPIC_API_KEY
+async function checkAnthropic(tenantKey?: string | null): Promise<{ status: "ok" | "error" | "warn"; label: string }> {
+  const key = tenantKey || process.env.ANTHROPIC_API_KEY
   if (!key || key === "PENDIENTE_AGREGAR") return { status: "error", label: "Sin API key" }
   try {
     const res = await withTimeout(
@@ -107,7 +107,7 @@ async function checkAnthropic(): Promise<{ status: "ok" | "error" | "warn"; labe
       }),
       TIMEOUT
     )
-    if (res.ok || res.status === 400) return { status: "ok", label: "Activo" }
+    if (res.ok || res.status === 400) return { status: "ok", label: tenantKey ? "Activo (tu key)" : "Activo" }
     if (res.status === 401) return { status: "error", label: "Key inválida" }
     return { status: "warn", label: `Error ${res.status}` }
   } catch {
@@ -154,17 +154,37 @@ export async function GET() {
   const session = await auth()
   if (!session?.user?.tenantId) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
+  // Load tenant's own API keys from DB
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: session.user.tenantId },
+    select: { anthropicApiKey: true, openaiApiKey: true, groqApiKey: true, aiProvider: true },
+  })
+
   const [fal, replicate, groq, openai, anthropic, meta, n8n] = await Promise.all([
     checkFal(),
     checkReplicate(),
-    checkGroq(),
-    checkOpenAI(),
-    checkAnthropic(),
+    checkGroq(tenant?.groqApiKey),
+    checkOpenAI(tenant?.openaiApiKey),
+    checkAnthropic(tenant?.anthropicApiKey),
     checkMeta(session.user.tenantId),
     checkN8n(),
   ])
 
+  // Determine which AI provider is actually being used
+  const activeProvider =
+    (tenant?.aiProvider === "anthropic" && tenant?.anthropicApiKey) ? "anthropic" :
+    (tenant?.aiProvider === "openai" && tenant?.openaiApiKey) ? "openai" :
+    (tenant?.aiProvider === "groq" && tenant?.groqApiKey) ? "groq" :
+    // Auto mode: pick best available
+    tenant?.anthropicApiKey ? "anthropic" :
+    tenant?.openaiApiKey ? "openai" :
+    tenant?.groqApiKey ? "groq" :
+    process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== "PENDIENTE_AGREGAR" ? "anthropic" :
+    process.env.GROQ_API_KEY ? "groq" :
+    "none"
+
   return NextResponse.json({
+    activeAIProvider: activeProvider,
     services: [
       { id: "replicate", name: "Replicate FLUX", category: "image", ...replicate },
       { id: "fal", name: "fal.ai", category: "image", ...fal },

@@ -10,7 +10,15 @@ interface IntegrationField {
   type?: "password" | "text"
 }
 
-const SECTIONS = [
+interface IntegrationSection {
+  id: string
+  title: string
+  icon: string
+  fields: IntegrationField[]
+  note?: string
+}
+
+const SECTIONS: IntegrationSection[] = [
   {
     id: "meta",
     title: "Meta (Instagram & Facebook)",
@@ -35,9 +43,9 @@ const SECTIONS = [
     title: "IA de Texto",
     icon: "🤖",
     fields: [
-      { key: "groqApiKey", label: "Groq API Key", type: "password", placeholder: "gsk_..." },
+      { key: "groqApiKey", label: "Groq API Key (gratis)", type: "password", placeholder: "gsk_..." },
       { key: "openaiApiKey", label: "OpenAI API Key", type: "password", placeholder: "sk-..." },
-      { key: "anthropicApiKey", label: "Anthropic API Key", type: "password", placeholder: "sk-ant-..." },
+      { key: "anthropicApiKey", label: "Anthropic API Key (Claude - recomendado)", type: "password", placeholder: "sk-ant-..." },
     ] as IntegrationField[],
   },
   {
@@ -62,6 +70,54 @@ const SECTIONS = [
       { key: "googleAdsDeveloperToken", label: "Developer Token", type: "password", placeholder: "abc123..." },
       { key: "googleAdsCustomerId", label: "Customer ID", placeholder: "123-456-7890" },
     ] as IntegrationField[],
+  },
+  {
+    id: "threads",
+    title: "Threads (Meta)",
+    icon: "🧵",
+    fields: [] as IntegrationField[],
+    note: "Threads usa el mismo App ID y Secret de Meta. Solo asegurate de habilitar los permisos 'threads_basic' y 'threads_content_publish' en tu Meta App.",
+  },
+  {
+    id: "pinterest",
+    title: "Pinterest",
+    icon: "📌",
+    fields: [
+      { key: "pinterestAppId", label: "App ID", placeholder: "1234567" },
+      { key: "pinterestAppSecret", label: "App Secret", type: "password", placeholder: "abc123..." },
+    ] as IntegrationField[],
+    note: "Crea tu app en developers.pinterest.com. Redirect URI: https://social.conectaai.cl/api/social/pinterest/callback",
+  },
+  {
+    id: "google_business",
+    title: "Google Business Profile",
+    icon: "📍",
+    fields: [
+      { key: "googleBusinessClientId", label: "Client ID", placeholder: "xxx.apps.googleusercontent.com" },
+      { key: "googleBusinessClientSecret", label: "Client Secret", type: "password", placeholder: "GOCSPX-..." },
+    ] as IntegrationField[],
+    note: "Crea credenciales OAuth 2.0 en console.cloud.google.com y habilita 'My Business API'. Redirect URI: https://social.conectaai.cl/api/social/google-business/callback",
+  },
+  {
+    id: "ayrshare",
+    title: "Ayrshare (Multi-plataforma)",
+    icon: "🚀",
+    fields: [
+      { key: "ayrshareApiKey", label: "API Key", type: "password", placeholder: "AYR..." },
+    ] as IntegrationField[],
+    note: "Ayrshare gestiona tokens, rate limits y scheduling automaticamente para 15+ plataformas. Plan desde $29/mes en ayrshare.com.",
+  },
+  {
+    id: "cloudflare_r2",
+    title: "Cloudflare R2 (Almacenamiento CDN)",
+    icon: "☁️",
+    fields: [
+      { key: "cloudflareAccountId", label: "Account ID", placeholder: "abc123..." },
+      { key: "cloudflareR2AccessKey", label: "R2 Access Key ID", type: "password", placeholder: "abc..." },
+      { key: "cloudflareR2SecretKey", label: "R2 Secret Access Key", type: "password", placeholder: "xyz..." },
+      { key: "cloudflareR2Bucket", label: "Bucket Name", placeholder: "social-media-assets" },
+    ] as IntegrationField[],
+    note: "Cloudflare R2 sirve imagenes via CDN global con HTTPS garantizado. Gratis hasta 10GB/mes.",
   },
 ]
 
@@ -186,6 +242,9 @@ export default function SettingsPage() {
                   </div>
                 )
               })}
+              {section.note && (
+                <p className="text-xs text-gray-500 bg-gray-800/50 rounded-lg p-3 mt-2">{section.note}</p>
+              )}
             </div>
           </div>
         ))}

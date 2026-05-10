@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
+  if (body.hashtags && Array.isArray(body.hashtags)) body.hashtags = body.hashtags.join(" ")
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 })

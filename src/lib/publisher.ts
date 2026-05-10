@@ -26,8 +26,8 @@ export async function publishPost(postId: string, tenantId: string) {
 
   // Atomic claim: only proceed if still SCHEDULED
   const claimed = await prisma.post.updateMany({
-    where: { id: postId, tenantId, status: "SCHEDULED" },
-    data: { status: "PUBLISHING" },
+    where: { id: postId, tenantId, status: { in: ["SCHEDULED", "FAILED"] } },
+    data: { status: "PUBLISHING", failReason: null, failedAt: null },
   })
   if (claimed.count === 0) return NextResponse.json({ error: "Post ya está siendo procesado" }, { status: 409 })
 
@@ -101,6 +101,37 @@ export async function publishPost(postId: string, tenantId: string) {
             })
           }
           metaId = await publishYouTubeShort(ytToken, post.mediaUrls[0], post.caption.slice(0, 100) || "Nuevo video", fullCaption)
+        } else if (platform === "PINTEREST") {
+          const { getPinterestBoards, publishPinterestPin } = await import("@/lib/pinterest")
+          const boards = await getPinterestBoards(account.accessToken)
+          const boardId = boards[0]?.id
+          if (!boardId) throw new Error("No hay tableros de Pinterest disponibles")
+          const pinTitle = post.caption.split("\n")[0].slice(0, 100).replace(/[^\w\s]/gi, "").trim() || "Nueva publicacion"
+          metaId = await publishPinterestPin(
+            account.accessToken,
+            boardId,
+            mediaUrl,
+            pinTitle,
+            fullCaption.slice(0, 500)
+          )
+        } else if (platform === "THREADS") {
+          const { publishThreadsPost } = await import("@/lib/threads")
+          metaId = await publishThreadsPost(
+            account.accountId,
+            account.accessToken,
+            fullCaption.slice(0, 500),
+            post.type !== "REEL" ? mediaUrl : undefined
+          )
+        } else if (platform === "GOOGLE_BUSINESS") {
+          const { publishGBPPost } = await import("@/lib/google-business")
+          const locationId = account.pageId ?? ""
+          metaId = await publishGBPPost(
+            account.accessToken,
+            account.accountId,
+            locationId,
+            fullCaption.slice(0, 1500),
+            mediaUrl
+          )
         } else {
           if (post.type === "STORY") {
             metaId = await publishFacebookStory(account.pageId ?? account.accountId, account.accessToken, mediaUrl)

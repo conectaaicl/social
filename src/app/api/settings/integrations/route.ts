@@ -9,6 +9,10 @@ const FIELDS = [
   "groqApiKey","openaiApiKey","anthropicApiKey",
   "googleAdsClientId","googleAdsClientSecret","googleAdsRefreshToken",
   "googleAdsDeveloperToken","googleAdsCustomerId",
+  "ayrshareApiKey",
+  "pinterestAppId","pinterestAppSecret",
+  "googleBusinessClientId","googleBusinessClientSecret",
+  "cloudflareAccountId","cloudflareR2AccessKey","cloudflareR2SecretKey","cloudflareR2Bucket",
 ] as const
 
 function mask(v: string | null) {

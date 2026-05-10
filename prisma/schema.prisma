@@ -98,6 +98,15 @@ model Tenant {
   googleAdsRefreshToken  String?
   googleAdsDeveloperToken String?
   googleAdsCustomerId    String?
+  ayrshareApiKey           String?
+  pinterestAppId           String?
+  pinterestAppSecret       String?
+  googleBusinessClientId   String?
+  googleBusinessClientSecret String?
+  cloudflareAccountId      String?
+  cloudflareR2AccessKey    String?
+  cloudflareR2SecretKey    String?
+  cloudflareR2Bucket       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -111,6 +120,12 @@ model Tenant {
   adCampaigns     AdCampaign[]
   mediaCategories MediaCategory[]
   affiliates       Affiliate[]
+  calendarSlots   CalendarSlot[]
+  socialLeads     SocialLead[]
+  winningPatterns WinningPattern[]
+  competitors     Competitor[]
+  videoScripts    VideoScript[]
+  abTests         ABTest[]
 
   @@map("tenants")
 }
@@ -127,6 +142,8 @@ model SocialAccount {
   tokenExpiresAt    DateTime?
   pageId            String?       // Facebook Page ID
   openId            String?       // TikTok open_id
+  dailyPostCount    Int           @default(0)
+  dailyPostResetAt  DateTime?
   active            Boolean       @default(true)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -224,6 +241,7 @@ model Post {
 
   postComments    PostComment[]
   adCampaigns     AdCampaign[]
+  calendarSlot    CalendarSlot?
 
   @@map("posts")
 }
@@ -327,6 +345,9 @@ enum Platform {
   LINKEDIN
   TWITTER
   YOUTUBE
+  PINTEREST
+  THREADS
+  GOOGLE_BUSINESS
 }
 
 enum PostType {
@@ -446,4 +467,153 @@ model AffiliateReferral {
   createdAt     DateTime       @default(now())
 
   @@map("affiliate_referrals")
+}
+
+model CalendarSlot {
+  id           String   @id @default(cuid())
+  tenantId     String
+  year         Int
+  month        Int
+  scheduledDate DateTime
+  timeSlot     String   @default("09:00")
+  formato      String
+  objetivo     String   @default("engagement")
+  temaSugerido String?
+  postId       String?  @unique
+  post         Post?    @relation(fields: [postId], references: [id])
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  @@index([tenantId, year, month])
+  @@map("calendar_slots")
+}
+
+model SocialLead {
+  id            String         @id @default(cuid())
+  tenantId      String
+  nombre        String?
+  whatsappPhone String
+  stage         String         @default("nuevo")
+  leadScore     Int            @default(0)
+  fuentePostId  String?
+  lastActivity  DateTime?
+  activities    LeadActivity[]
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  @@index([tenantId])
+  @@map("social_leads")
+}
+
+model LeadActivity {
+  id        String     @id @default(cuid())
+  leadId    String
+  tipo      String
+  detalle   String?
+  lead      SocialLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  @@map("lead_activities")
+}
+
+model WinningPattern {
+  id              String   @id @default(cuid())
+  tenantId        String
+  descripcion     String
+  avgEngagement   Float
+  sampleSize      Int
+  confidenceScore Float    @default(0.8)
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  @@map("winning_patterns")
+}
+
+// === RADAR DE COMPETENCIA ===
+model Competitor {
+  id             String           @id @default(cuid())
+  tenantId       String
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name           String
+  handle         String
+  platform       String           @default("instagram")
+  tier           Int              @default(2)
+  active         Boolean          @default(true)
+  avatarUrl      String?
+  followersCount Int?
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  posts          CompetitorPost[]
+
+  @@unique([tenantId, handle])
+  @@index([tenantId])
+  @@map("competitors")
+}
+
+model CompetitorPost {
+  id                String     @id @default(cuid())
+  competitorId      String
+  competitor        Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  postId            String
+  caption           String?
+  mediaUrl          String?
+  mediaType         String?
+  likesCount        Int        @default(0)
+  commentsCount     Int        @default(0)
+  viewsCount        Int        @default(0)
+  isViral           Boolean    @default(false)
+  viralScore        Float      @default(0)
+  postUrl           String?
+  postedAt          DateTime?
+  fetchedAt         DateTime   @default(now())
+  recreated         Boolean    @default(false)
+  recreatedCaption  String?
+  recreatedImageUrl String?
+  recreatedAt       DateTime?
+  publishedAt       DateTime?
+
+  @@unique([competitorId, postId])
+  @@index([competitorId])
+  @@index([isViral])
+  @@index([postedAt])
+  @@map("competitor_posts")
+}
+
+// === SEMANA 4: VIDEO GENERATOR + A/B TESTING ===
+
+model VideoScript {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template     String   // tips | antes_despues | showcase | problema_solucion
+  topic        String
+  script       Json?
+  status       String   @default("pending") // pending | processing | done | error
+  outputUrl    String?
+  thumbnailUrl String?
+  duration     Int?
+  postRef      String?
+  error        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("video_scripts")
+}
+
+model ABTest {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  hypothesis  String?
+  postARef    String
+  postBRef    String?
+  status      String    @default("draft") // draft | running | completed
+  winnerId    String?
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@map("ab_tests")
 }

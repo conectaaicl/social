@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { generateCaptionVariants } from "@/lib/claude"
+import { buildTenantAIConfig } from "@/lib/ai-config"
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -15,7 +16,13 @@ export async function POST(req: NextRequest) {
   })
   if (!brandVoice) return NextResponse.json({ error: "Configura tu marca primero" }, { status: 400 })
 
-  const variants = await generateCaptionVariants({
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: session.user.tenantId },
+    select: { aiProvider: true, anthropicApiKey: true, openaiApiKey: true, groqApiKey: true },
+  })
+  const aiConfig = buildTenantAIConfig(tenant)
+
+  const variants = await generateCaptionVariants({ aiConfig,
     brandVoice: {
       industry: brandVoice.industry,
       description: brandVoice.description,

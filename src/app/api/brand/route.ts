@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 })
     }
 
-    const { logoUrl, ...brandData } = parsed.data
+    const { logoUrl, contentMix, ...brandData } = parsed.data
 
     const brandVoice = await prisma.brandVoice.upsert({
       where: { tenantId: session.user.tenantId },
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, id: brandVoice.id })
   } catch (error) {
     console.error("Brand save error:", error)
-    return NextResponse.json({ error: "Error interno" }, { status: 500 })
+    return NextResponse.json({ error: "Error interno", detail: (error as any)?.message?.slice(0, 300) ?? "unknown" }, { status: 500 })
   }
 }
 
@@ -112,7 +112,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("CalendarConfig update error:", error)
-    return NextResponse.json({ error: "Error interno" }, { status: 500 })
+    return NextResponse.json({ error: "Error interno", detail: (error as any)?.message?.slice(0, 300) ?? "unknown" }, { status: 500 })
   }
 }
 
@@ -132,6 +132,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ brandVoice, calendarConfig, tenant })
   } catch (error) {
     console.error("Brand get error:", error)
-    return NextResponse.json({ error: "Error interno" }, { status: 500 })
+    return NextResponse.json({ error: "Error interno", detail: (error as any)?.message?.slice(0, 300) ?? "unknown" }, { status: 500 })
   }
 }

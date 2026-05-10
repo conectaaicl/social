@@ -6,7 +6,7 @@ import { Instagram, Facebook, Link2, Trash2, RefreshCw, CheckCircle2, AlertTrian
 
 interface SocialAccount {
   id: string
-  platform: "INSTAGRAM" | "FACEBOOK" | "TIKTOK" | "LINKEDIN" | "YOUTUBE"
+  platform: "INSTAGRAM" | "FACEBOOK" | "TIKTOK" | "LINKEDIN" | "YOUTUBE" | "PINTEREST" | "THREADS" | "GOOGLE_BUSINESS"
   accountId: string
   accountName: string
   pageId: string | null
@@ -17,11 +17,14 @@ interface SocialAccount {
 }
 
 const PLATFORM_CONFIG = {
-  INSTAGRAM: { label: "Instagram",  icon: Instagram, connectUrl: "/api/social/connect",           iconClass: "text-pink-400",   color: "pink-400"   },
-  FACEBOOK:  { label: "Facebook",   icon: Facebook,  connectUrl: "/api/social/connect",           iconClass: "text-blue-400",   color: "blue-400"   },
-  TIKTOK:    { label: "TikTok",     icon: Music2,    connectUrl: "/api/social/tiktok/connect",    iconClass: "text-red-400",    color: "red-400"    },
-  LINKEDIN:  { label: "LinkedIn",   icon: Linkedin,  connectUrl: "/api/social/linkedin/connect",  iconClass: "text-sky-400",    color: "sky-400"    },
-  YOUTUBE:   { label: "YouTube",    icon: Youtube,   connectUrl: "/api/social/youtube/connect",   iconClass: "text-rose-400",   color: "rose-400"   },
+  INSTAGRAM:       { label: "Instagram",          icon: Instagram, connectUrl: "/api/social/connect",                    iconClass: "text-pink-400",   color: "pink-400"   },
+  FACEBOOK:        { label: "Facebook",            icon: Facebook,  connectUrl: "/api/social/connect",                    iconClass: "text-blue-400",   color: "blue-400"   },
+  TIKTOK:          { label: "TikTok",              icon: Music2,    connectUrl: "/api/social/tiktok/connect",             iconClass: "text-red-400",    color: "red-400"    },
+  LINKEDIN:        { label: "LinkedIn",            icon: Linkedin,  connectUrl: "/api/social/linkedin/connect",           iconClass: "text-sky-400",    color: "sky-400"    },
+  YOUTUBE:         { label: "YouTube",             icon: Youtube,   connectUrl: "/api/social/youtube/connect",            iconClass: "text-rose-400",   color: "rose-400"   },
+  PINTEREST:       { label: "Pinterest",           icon: Link2,     connectUrl: "/api/social/pinterest/connect",          iconClass: "text-red-500",    color: "red-500"    },
+  THREADS:         { label: "Threads",             icon: Link2,     connectUrl: "/api/social/threads/connect",            iconClass: "text-gray-300",   color: "gray-300"   },
+  GOOGLE_BUSINESS: { label: "Google Business",    icon: Link2,     connectUrl: "/api/social/google-business/connect",    iconClass: "text-yellow-400", color: "yellow-400" },
 }
 
 function PlatformIcon({ platform }: { platform: string }) {
@@ -44,6 +47,7 @@ function AccountsContent() {
   const [accounts, setAccounts] = useState<SocialAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState<string | null>(null)
   const [banner, setBanner] = useState<{ type: "success" | "error"; message: string } | null>(null)
 
   const fetchAccounts = useCallback(async () => {
@@ -78,7 +82,26 @@ function AccountsContent() {
     }
   }
 
-  const SECTIONS: Array<keyof typeof PLATFORM_CONFIG> = ["INSTAGRAM", "FACEBOOK", "TIKTOK", "LINKEDIN", "YOUTUBE"]
+  async function handleRefresh(id: string) {
+    setRefreshing(id)
+    try {
+      const res = await fetch("/api/social/accounts/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId: id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setBanner({ type: "success", message: data.message ?? "Token renovado" })
+      fetchAccounts()
+    } catch (err: any) {
+      setBanner({ type: "error", message: err.message })
+    } finally {
+      setRefreshing(null)
+    }
+  }
+
+  const SECTIONS: Array<keyof typeof PLATFORM_CONFIG> = ["INSTAGRAM", "FACEBOOK", "TIKTOK", "LINKEDIN", "YOUTUBE", "PINTEREST", "THREADS", "GOOGLE_BUSINESS"]
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
@@ -149,6 +172,16 @@ function AccountsContent() {
                             <span className="text-xs bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full">Activa</span>
                           ) : (
                             <span className="text-xs bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded-full">Inactiva</span>
+                          )}
+                          {(account.platform === "INSTAGRAM" || account.platform === "FACEBOOK") && (
+                            <button
+                              onClick={() => handleRefresh(account.id)}
+                              disabled={refreshing === account.id}
+                              title="Renovar token por 60 dias"
+                              className="p-1.5 rounded-lg text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
+                            >
+                              <RefreshCw className={"w-4 h-4" + (refreshing === account.id ? " animate-spin" : "")} />
+                            </button>
                           )}
                           <button
                             onClick={() => handleDelete(account.id)}

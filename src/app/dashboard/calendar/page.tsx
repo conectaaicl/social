@@ -1,230 +1,280 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import {
-  ChevronLeft, ChevronRight, Instagram, Facebook, Video, Image, RefreshCw
-} from "lucide-react"
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, isToday } from "date-fns"
-import { es } from "date-fns/locale"
+import { ChevronLeft, ChevronRight, Zap, Loader2, Plus, CheckCircle2, Image, Video, Layers } from "lucide-react"
+import { addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isToday, format } from "date-fns"
+import Link from "next/link"
+
+interface CalendarSlot {
+  id: string
+  scheduled_date: string
+  time_slot: string
+  formato: string
+  objetivo: string
+  tema_sugerido: string | null
+  post_id: string | null
+  post_status: string | null
+  caption_principal: string | null
+}
 
 interface Post {
   id: string
   type: string
-  contentType: string
-  platform: string[]
   status: string
   caption: string
   scheduledAt: string
-  mediaUrls: string[]
-  thumbnailUrl: string | null
 }
 
 const STATUS_DOT: Record<string, string> = {
-  SCHEDULED: "bg-indigo-400",
-  PUBLISHED: "bg-green-400",
-  GENERATING: "bg-yellow-400",
-  FAILED: "bg-red-400",
-  PENDING: "bg-gray-500",
-  PUBLISHING: "bg-blue-400",
+  scheduled: "bg-indigo-400", published: "bg-green-400",
+  generating: "bg-yellow-400", failed: "bg-red-400",
+  pending: "bg-gray-500", publishing: "bg-blue-400",
 }
+const FORMAT_ICON: Record<string, any> = {
+  carrusel: Layers, reel: Video, historia: Image, imagen: Image,
+}
+const OBJ_COLOR: Record<string, string> = {
+  engagement: "text-pink-400", educativo: "text-blue-400",
+  promocional: "text-yellow-400", inspiracional: "text-purple-400",
+  testimonial: "text-green-400",
+}
+const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [slots, setSlots] = useState<CalendarSlot[]>([])
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedDay, setSelectedDay] = useState<Date | null>(new Date())
+  const [generating, setGenerating] = useState(false)
+  const [generatingSlot, setGeneratingSlot] = useState<string | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<CalendarSlot | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
 
-  const fetchPosts = useCallback(async () => {
+  const year = currentMonth.getFullYear()
+  const month = currentMonth.getMonth() + 1
+
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch("/api/posts?limit=200")
-      const data = await res.json()
-      setPosts(data.posts ?? [])
+      const [slotsRes, postsRes] = await Promise.all([
+        fetch(`/api/calendar/${year}/${month}`),
+        fetch("/api/posts?limit=100"),
+      ])
+      const sd = await slotsRes.json()
+      const pd = await postsRes.json()
+      setSlots(sd.slots ?? [])
+      setPosts(pd.posts ?? [])
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [year, month])
 
-  useEffect(() => { fetchPosts() }, [fetchPosts])
+  useEffect(() => { fetchData() }, [fetchData])
 
-  const monthStart = startOfMonth(currentMonth)
-  const monthEnd = endOfMonth(currentMonth)
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
-
-  const startDow = monthStart.getDay()
-  const blanks = Array.from({ length: startDow })
-
-  function postsForDay(day: Date) {
-    return posts.filter((p) => isSameDay(new Date(p.scheduledAt), day))
+  const generateCalendar = async () => {
+    setGenerating(true)
+    setMsg(null)
+    try {
+      const res = await fetch("/api/calendar/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year, month }),
+      })
+      const data = await res.json()
+      setMsg(data.message ?? "Calendario generado")
+      await fetchData()
+    } catch {
+      setMsg("Error al generar")
+    } finally {
+      setGenerating(false)
+    }
   }
 
-  const selectedPosts = selectedDay ? postsForDay(selectedDay) : []
+  const generateSlotContent = async (slot: CalendarSlot) => {
+    setGeneratingSlot(slot.id)
+    setMsg(null)
+    try {
+      const res = await fetch(`/api/calendar/slots/${slot.id}/generate`, { method: "POST" })
+      const data = await res.json()
+      if (data.ok) {
+        setMsg("Post generado — agrega imagen en Posts")
+        await fetchData()
+        setSelectedSlot(null)
+      } else {
+        setMsg(data.error ?? "Error al generar")
+      }
+    } finally {
+      setGeneratingSlot(null)
+    }
+  }
+
+  const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) })
+  const startDow = startOfMonth(currentMonth).getDay()
+
+  const slotsByDate = new Map<string, CalendarSlot[]>()
+  slots.forEach((s) => {
+    if (!slotsByDate.has(s.scheduled_date)) slotsByDate.set(s.scheduled_date, [])
+    slotsByDate.get(s.scheduled_date)!.push(s)
+  })
+
+  const postsByDate = new Map<string, Post[]>()
+  posts.forEach((p) => {
+    if (!p.scheduledAt) return
+    const key = p.scheduledAt.split("T")[0]
+    if (!postsByDate.has(key)) postsByDate.set(key, [])
+    postsByDate.get(key)!.push(p)
+  })
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-100">Calendario</h1>
-        <p className="text-gray-500 mt-1 text-sm">Vista mensual de todos tus posts programados</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar */}
-        <div className="lg:col-span-2">
-          <div className="card">
-            {/* Nav */}
-            <div className="flex items-center justify-between mb-5">
-              <button
-                onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-                className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4 text-gray-400" />
-              </button>
-              <h2 className="text-base font-semibold text-gray-100 capitalize">
-                {format(currentMonth, "MMMM yyyy", { locale: es })}
-              </h2>
-              <button
-                onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-                className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
-              >
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </button>
-            </div>
-
-            {/* Day labels */}
-            <div className="grid grid-cols-7 mb-2">
-              {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map((d) => (
-                <div key={d} className="text-center text-xs font-medium text-gray-500 py-1">
-                  {d}
-                </div>
-              ))}
-            </div>
-
-            {/* Days grid */}
-            <div className="grid grid-cols-7 gap-1">
-              {blanks.map((_, i) => <div key={`blank-${i}`} />)}
-              {days.map((day) => {
-                const dayPosts = postsForDay(day)
-                const isSelected = selectedDay && isSameDay(day, selectedDay)
-                const today = isToday(day)
-
-                return (
-                  <button
-                    key={day.toISOString()}
-                    onClick={() => setSelectedDay(day)}
-                    className={`relative p-2 rounded-lg text-left transition-all min-h-[64px] ${
-                      isSelected
-                        ? "bg-indigo-600/20 border border-indigo-500/40"
-                        : "hover:bg-gray-800 border border-transparent"
-                    }`}
-                  >
-                    <span
-                      className={`text-xs font-medium block mb-1 ${
-                        today
-                          ? "w-5 h-5 bg-indigo-500 text-white rounded-full flex items-center justify-center text-[10px]"
-                          : isSelected
-                          ? "text-indigo-300"
-                          : "text-gray-400"
-                      }`}
-                    >
-                      {format(day, "d")}
-                    </span>
-                    <div className="flex flex-wrap gap-0.5">
-                      {dayPosts.slice(0, 3).map((p) => (
-                        <span
-                          key={p.id}
-                          className={`w-2 h-2 rounded-full ${STATUS_DOT[p.status] ?? "bg-gray-600"}`}
-                        />
-                      ))}
-                      {dayPosts.length > 3 && (
-                        <span className="text-[9px] text-gray-500">+{dayPosts.length - 3}</span>
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Legend */}
-            <div className="flex flex-wrap gap-4 mt-5 pt-4 border-t border-gray-800">
-              {[
-                { label: "Programado", dot: "bg-indigo-400" },
-                { label: "Publicado", dot: "bg-green-400" },
-                { label: "Generando", dot: "bg-yellow-400" },
-                { label: "Fallido", dot: "bg-red-400" },
-              ].map(({ label, dot }) => (
-                <div key={label} className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <span className={`w-2 h-2 rounded-full ${dot}`} />
-                  {label}
-                </div>
-              ))}
-            </div>
+    <div className="flex flex-col h-full min-h-screen">
+      <div className="px-6 py-4 border-b border-gray-800 bg-gray-950 sticky top-0 z-10">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-white">Calendario Social IA</h1>
+            <p className="text-xs text-gray-500 mt-0.5">{slots.length} slots planificados</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setCurrentMonth(m => subMonths(m, 1))} className="p-2 rounded-lg border border-gray-700 text-gray-400 hover:text-white transition">
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-white font-semibold min-w-[140px] text-center text-sm">
+              {MONTHS[month - 1]} {year}
+            </span>
+            <button onClick={() => setCurrentMonth(m => addMonths(m, 1))} className="p-2 rounded-lg border border-gray-700 text-gray-400 hover:text-white transition">
+              <ChevronRight size={16} />
+            </button>
+            <button onClick={generateCalendar} disabled={generating}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-xl transition disabled:opacity-60">
+              {generating ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+              {generating ? "Generando..." : "Generar con IA"}
+            </button>
           </div>
         </div>
+        {msg && (
+          <div className="mt-2 text-xs text-indigo-300 bg-indigo-900/30 border border-indigo-700/40 rounded-lg px-3 py-1.5">{msg}</div>
+        )}
+      </div>
 
-        {/* Day detail */}
-        <div className="card">
-          {selectedDay ? (
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1 p-4 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center h-48 text-gray-500">
+              <Loader2 size={20} className="animate-spin mr-2" /> Cargando...
+            </div>
+          ) : (
             <>
-              <h3 className="text-sm font-semibold text-gray-200 mb-4 capitalize">
-                {format(selectedDay, "EEEE d 'de' MMMM", { locale: es })}
-              </h3>
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <RefreshCw className="w-5 h-5 text-indigo-400 animate-spin" />
-                </div>
-              ) : selectedPosts.length === 0 ? (
-                <p className="text-gray-500 text-sm text-center py-8">Sin posts este día</p>
-              ) : (
-                <div className="space-y-3">
-                  {selectedPosts.map((post) => (
-                    <div key={post.id} className="flex items-start gap-3 p-3 bg-gray-800/50 rounded-lg">
-                      {post.mediaUrls[0] ? (
-                        <img
-                          src={post.thumbnailUrl ?? post.mediaUrls[0]}
-                          alt=""
-                          className="w-12 h-12 rounded-lg object-cover shrink-0"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center shrink-0">
-                          {post.type === "REEL" ? (
-                            <Video className="w-5 h-5 text-gray-500" />
-                          ) : (
-                            <Image className="w-5 h-5 text-gray-500" />
-                          )}
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          {post.platform.map((p) => (
-                            <span key={p}>
-                              {p === "INSTAGRAM" ? (
-                                <Instagram className="w-3 h-3 text-pink-400" />
-                              ) : (
-                                <Facebook className="w-3 h-3 text-blue-400" />
+              <div className="grid grid-cols-7 gap-1.5 mb-1.5">
+                {["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"].map(d => (
+                  <div key={d} className="text-center text-[10px] text-gray-600 uppercase tracking-widest py-1">{d}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1.5">
+                {Array.from({ length: startDow }).map((_, i) => <div key={"e"+i} />)}
+                {days.map((day) => {
+                  const key = format(day, "yyyy-MM-dd")
+                  const daySlots = slotsByDate.get(key) ?? []
+                  const dayPosts = postsByDate.get(key) ?? []
+                  const today = isToday(day)
+                  return (
+                    <div key={key}
+                      className={"min-h-[88px] rounded-xl border p-1.5 transition-colors " +
+                        (today ? "border-indigo-500/50 bg-indigo-900/10" : "border-gray-800 bg-gray-900/40 hover:border-gray-700")}>
+                      <div className={"text-xs font-medium px-0.5 mb-1 " + (today ? "text-indigo-400" : "text-gray-500")}>
+                        {day.getDate()}
+                      </div>
+                      <div className="space-y-0.5">
+                        {daySlots.map((slot) => {
+                          const Icon = FORMAT_ICON[slot.formato] ?? Image
+                          return (
+                            <button key={slot.id} onClick={() => setSelectedSlot(slot)}
+                              className={"w-full text-left px-1.5 py-1 rounded-lg transition " +
+                                (selectedSlot?.id === slot.id
+                                  ? "bg-indigo-600/30 border border-indigo-500/50"
+                                  : "bg-gray-800/60 hover:bg-gray-700/60 border border-transparent")}>
+                              <div className="flex items-center gap-1">
+                                <Icon size={8} className={slot.post_id ? "text-green-400" : "text-gray-500"} />
+                                <span className="text-[9px] text-gray-400 capitalize truncate flex-1">{slot.formato}</span>
+                                {slot.post_id && <div className={"w-1.5 h-1.5 rounded-full " + (STATUS_DOT[slot.post_status ?? "pending"] ?? "bg-gray-500")} />}
+                              </div>
+                              {slot.tema_sugerido && (
+                                <div className="text-[8px] text-gray-600 truncate mt-0.5">{slot.tema_sugerido.slice(0, 28)}</div>
                               )}
-                            </span>
-                          ))}
-                          <span className="text-xs text-gray-500">
-                            {format(new Date(post.scheduledAt), "HH:mm")}
-                          </span>
-                          <span
-                            className={`ml-auto w-2 h-2 rounded-full ${STATUS_DOT[post.status] ?? "bg-gray-500"}`}
-                          />
-                        </div>
-                        <p className="text-xs text-gray-300 line-clamp-2 leading-relaxed">{post.caption}</p>
-                        <p className="text-xs text-gray-600 mt-0.5">
-                          {post.type} · {post.contentType}
-                        </p>
+                            </button>
+                          )
+                        })}
+                        {dayPosts.filter(p => !daySlots.find(s => s.post_id === p.id)).map((post) => (
+                          <Link key={post.id} href="/dashboard/posts"
+                            className="w-full text-left px-1.5 py-1 rounded-lg bg-gray-800/40 hover:bg-gray-700/40 border border-transparent block">
+                            <div className="flex items-center gap-1">
+                              <div className={"w-1.5 h-1.5 rounded-full " + (STATUS_DOT[post.status.toLowerCase()] ?? "bg-gray-500")} />
+                              <span className="text-[9px] text-gray-400 capitalize truncate">{post.type.toLowerCase()}</span>
+                            </div>
+                          </Link>
+                        ))}
                       </div>
                     </div>
-                  ))}
+                  )
+                })}
+              </div>
+              {slots.length === 0 && (
+                <div className="text-center py-16">
+                  <Zap size={36} className="text-indigo-600/40 mx-auto mb-3" />
+                  <h3 className="text-white font-semibold mb-1">Sin planificación aún</h3>
+                  <p className="text-gray-500 text-sm mb-5">La IA genera hasta 20 posts optimizados para tu negocio.</p>
+                  <button onClick={generateCalendar} disabled={generating}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl mx-auto text-sm font-medium transition disabled:opacity-60">
+                    {generating ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+                    Generar calendario de {MONTHS[month - 1]}
+                  </button>
                 </div>
               )}
             </>
-          ) : (
-            <p className="text-gray-500 text-sm text-center py-8">Selecciona un día</p>
           )}
         </div>
+
+        {selectedSlot && (
+          <div className="w-72 border-l border-gray-800 bg-gray-900/60 p-5 overflow-y-auto flex-shrink-0">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <div className="text-xs text-gray-500 capitalize mb-1">
+                  {selectedSlot.formato} · <span className={OBJ_COLOR[selectedSlot.objetivo] ?? "text-gray-400"}>{selectedSlot.objetivo}</span>
+                </div>
+                <div className="text-xs text-gray-400">{selectedSlot.time_slot} · {selectedSlot.scheduled_date}</div>
+              </div>
+              <button onClick={() => setSelectedSlot(null)} className="text-gray-600 hover:text-gray-300 text-xl leading-none">x</button>
+            </div>
+
+            {selectedSlot.tema_sugerido && (
+              <div className="mb-4 p-3 bg-gray-800/60 rounded-xl border border-gray-700/50">
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Tema IA</div>
+                <p className="text-white text-sm leading-snug">{selectedSlot.tema_sugerido}</p>
+              </div>
+            )}
+
+            {selectedSlot.caption_principal && (
+              <div className="mb-4 p-3 bg-gray-800/40 rounded-xl border border-gray-700/30">
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Caption</div>
+                <p className="text-gray-300 text-xs leading-relaxed line-clamp-6">{selectedSlot.caption_principal}</p>
+              </div>
+            )}
+
+            <div className="space-y-2 mt-4">
+              {!selectedSlot.post_id ? (
+                <button onClick={() => generateSlotContent(selectedSlot)} disabled={!!generatingSlot}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-xl transition disabled:opacity-60">
+                  {generatingSlot === selectedSlot.id ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                  {generatingSlot === selectedSlot.id ? "Generando..." : "Generar contenido IA"}
+                </button>
+              ) : (
+                <Link href="/dashboard/posts"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-700/40 hover:bg-green-700/60 text-green-300 text-sm font-medium rounded-xl transition border border-green-700/40">
+                  <CheckCircle2 size={14} />
+                  Ver post generado
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

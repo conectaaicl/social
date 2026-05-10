@@ -26,11 +26,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: "El archivo supera el límite de 10MB" }, { status: 400 })
+    if (file.size > 50 * 1024 * 1024) {
+      return NextResponse.json({ error: "El archivo supera el límite de 50MB" }, { status: 400 })
     }
 
-    const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg"
+    const MIME_TO_EXT: Record<string, string> = {
+      "image/jpeg": "jpg", "image/jpg": "jpg",
+      "image/png": "png", "image/webp": "webp", "image/gif": "gif",
+    }
+    const ext = MIME_TO_EXT[file.type] ?? "jpg"
     const filename = `${randomUUID()}.${ext}`
     const uploadsDir = join(process.cwd(), "public", "uploads")
 
