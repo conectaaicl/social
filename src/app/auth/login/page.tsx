@@ -4,13 +4,12 @@ import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Zap, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
+  const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -18,124 +17,95 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError("")
-
-    const res = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    })
-
+    const res = await signIn("credentials", { email, password, redirect: false })
     if (res?.error) {
-      setError("Email o contraseña incorrectos. Verifica tus datos.")
+      setError("Email o contraseña incorrectos")
       setLoading(false)
       return
     }
-
     router.push("/dashboard")
   }
 
-  return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background gradient blobs */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-20" />
+  const C = { bg: "#070b12", surf: "#0f1623", surf2: "#161d2e", border: "rgba(255,255,255,0.07)", text: "#e2e8f0", muted: "#64748b" }
 
-      <div className="relative w-full max-w-md">
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", position: "relative", overflow: "hidden" }}>
+      {/* Glow orbs */}
+      <div style={{ position: "absolute", top: "15%", left: "20%", width: 400, height: 400, borderRadius: "50%", background: "rgba(124,58,237,0.07)", filter: "blur(80px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: "10%", right: "15%", width: 350, height: 350, borderRadius: "50%", background: "rgba(79,70,229,0.05)", filter: "blur(80px)", pointerEvents: "none" }} />
+
+      <div style={{ width: "100%", maxWidth: 400, position: "relative", zIndex: 1 }}>
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <Zap className="w-5 h-5 text-white" />
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,#7c3aed,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 28px rgba(124,58,237,0.35)" }}>
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none"><path d="M13 3L4 14h8l-1 7 9-11h-8z" fill="white"/></svg>
             </div>
-            <div className="text-left">
-              <p className="text-lg font-bold text-gray-100 leading-none">ConectaAI</p>
-              <p className="text-sm text-indigo-400 font-medium leading-none mt-0.5">Social</p>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#f1f5f9", letterSpacing: "-0.02em" }}>ConectaAI</div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", background: "linear-gradient(90deg,#a78bfa,#60a5fa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Social IA</div>
             </div>
           </div>
-          <p className="text-gray-500 text-sm">Gestión autónoma de redes sociales con IA</p>
+          <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>Gestión autónoma de redes sociales</p>
         </div>
 
         {/* Card */}
-        <div className="bg-gray-900/80 backdrop-blur border border-gray-800 rounded-2xl p-8 shadow-2xl">
-          <h1 className="text-xl font-semibold text-gray-100 mb-1">Iniciar sesión</h1>
-          <p className="text-gray-500 text-sm mb-6">Ingresa a tu panel de control</p>
+        <div style={{ background: C.surf, border: `1px solid ${C.border}`, borderRadius: 16, padding: "32px 28px", boxShadow: "0 24px 60px rgba(0,0,0,0.4)" }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, margin: "0 0 4px" }}>Iniciar sesión</h1>
+          <p style={{ fontSize: 13, color: C.muted, margin: "0 0 24px" }}>Ingresa a tu panel de control</p>
 
           {error && (
-            <div className="flex items-start gap-2.5 bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl mb-5">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", fontSize: 13, padding: "10px 14px", borderRadius: 10, marginBottom: 18, display: "flex", alignItems: "center", gap: 8 }}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#f87171" strokeWidth="2"/><path d="M12 8v4m0 4h.01" stroke="#f87171" strokeWidth="2" strokeLinecap="round"/></svg>
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1.5">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input
-                  type="email"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-10 pr-4 py-2.5 text-gray-100 placeholder-gray-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-colors text-sm"
-                  placeholder="tu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
+              <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Correo electrónico</label>
+              <div style={{ position: "relative" }}>
+                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7" stroke="#475569" strokeWidth="1.5" strokeLinecap="round"/><rect x="2" y="4" width="20" height="16" rx="2" stroke="#475569" strokeWidth="1.5"/></svg>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="tu@empresa.com"
+                  style={{ width: "100%", background: C.surf2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "11px 12px 11px 36px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box", transition: "border-color 0.15s" }}
+                  onFocus={e => (e.target.style.borderColor = "rgba(124,58,237,0.5)")}
+                  onBlur={e => (e.target.style.borderColor = C.border)} />
               </div>
             </div>
 
+            {/* Password */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-gray-400">Contraseña</label>
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-                >
-                  ¿Olvidaste tu contraseña?
-                </Link>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Contraseña</label>
+                <Link href="/auth/forgot-password" style={{ fontSize: 11, color: "#a78bfa", textDecoration: "none" }}>¿Olvidaste tu contraseña?</Link>
               </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-10 pr-10 py-2.5 text-gray-100 placeholder-gray-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-colors text-sm"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-400"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <div style={{ position: "relative" }}>
+                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}><rect x="3" y="11" width="18" height="11" rx="2" stroke="#475569" strokeWidth="1.5"/><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="#475569" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••"
+                  style={{ width: "100%", background: C.surf2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "11px 40px 11px 36px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box", transition: "border-color 0.15s" }}
+                  onFocus={e => (e.target.style.borderColor = "rgba(124,58,237,0.5)")}
+                  onBlur={e => (e.target.style.borderColor = C.border)} />
+                <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: C.muted, padding: 0, display: "flex" }}>
+                  {showPw
+                    ? <svg width={14} height={14} viewBox="0 0 24 24" fill="none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                    : <svg width={14} height={14} viewBox="0 0 24 24" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5"/></svg>
+                  }
                 </button>
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full mt-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold py-2.5 px-4 rounded-xl transition-all duration-200 shadow-lg shadow-indigo-500/20 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Ingresando…
-                </>
-              ) : "Ingresar"}
+            <button type="submit" disabled={loading}
+              style={{ width: "100%", padding: "12px", borderRadius: 10, border: "none", cursor: loading ? "not-allowed" : "pointer", background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "white", fontSize: 14, fontWeight: 700, opacity: loading ? 0.7 : 1, transition: "opacity 0.15s", marginTop: 4, boxShadow: "0 4px 16px rgba(124,58,237,0.3)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              {loading && <svg width={14} height={14} viewBox="0 0 24 24" fill="none" style={{ animation: "spin 1s linear infinite" }}><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>}
+              {loading ? "Ingresando…" : "Ingresar →"}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-gray-600 text-xs mt-6">
-          © {new Date().getFullYear()} ConectaAI · Todos los derechos reservados
-        </p>
+        <p style={{ textAlign: "center", fontSize: 11, color: "#2a3446", marginTop: 20 }}>© {new Date().getFullYear()} ConectaAI · Plataforma de IA para redes sociales</p>
       </div>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } input::placeholder { color: #334155; }`}</style>
     </div>
   )
 }

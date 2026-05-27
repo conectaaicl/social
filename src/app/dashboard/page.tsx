@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
+import AutopilotBanner from "@/components/dashboard/AutopilotBanner"
 
 async function getDashboardData(tenantId: string) {
   const now = new Date()
@@ -117,6 +118,8 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      <AutopilotBanner />
+
       {/* ── Alerts ── */}
       {d.pendingApproval > 0 && (
         <Link href="/dashboard/aprobaciones" style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 10, marginBottom: 20, textDecoration: "none", background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.25)" }}>
@@ -166,7 +169,7 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 20, alignItems: "start" }}>
         {/* ── Left: recent posts ── */}
         <div>
           {/* Connected accounts */}
