@@ -127,7 +127,8 @@ export async function POST(req: NextRequest) {
         await prisma.post.update({
           where: { id: postId },
           data: {
-            status: "SCHEDULED",
+            // Detect stock fallback vs AI image
+            status: imageUrl.includes("pexels.com") || imageUrl.includes("pollinations.ai") ? "PENDING_APPROVAL" : "SCHEDULED",
             caption: content.caption,
             hashtags: content.hashtags,
             imagePrompt: content.imagePrompt,
@@ -136,6 +137,9 @@ export async function POST(req: NextRequest) {
             thumbnailUrl,
           },
         })
+        if (imageUrl.includes("pexels.com") || imageUrl.includes("pollinations.ai")) {
+          console.warn(`[generate] Post ${postId} uses stock image — set to PENDING_APPROVAL`)
+        }
         created++
       } catch (err: any) {
         errors.push(err.message)

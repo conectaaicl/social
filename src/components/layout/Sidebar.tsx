@@ -252,6 +252,50 @@ function IconAgency({ size = 16 }: { size?: number }) {
   )
 }
 
+
+function IconInbox({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="5" width="18" height="15" rx="3" fill="#3b82f6" fillOpacity="0.15" stroke="#3b82f6" strokeWidth="1.5" />
+      <path d="M3 10h4l2 3h6l2-3h4" stroke="#60a5fa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 7h8M8 4h8" stroke="#93c5fd" strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.5" />
+    </svg>
+  )
+}
+
+function IconBulk({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="7" height="7" rx="2" fill="#f59e0b" fillOpacity="0.3" stroke="#f59e0b" strokeWidth="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="2" fill="#fbbf24" fillOpacity="0.3" stroke="#fbbf24" strokeWidth="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="2" fill="#fcd34d" fillOpacity="0.3" stroke="#fcd34d" strokeWidth="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="2" fill="#fde68a" fillOpacity="0.3" stroke="#fbbf24" strokeWidth="1.5" />
+      <path d="M7 7l10 10M17 7L7 17" stroke="#f59e0b" strokeWidth="1" strokeOpacity="0.3" />
+    </svg>
+  )
+}
+
+function IconLinkBio({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <rect x="6" y="2" width="12" height="20" rx="3" fill="#10b981" fillOpacity="0.15" stroke="#10b981" strokeWidth="1.5" />
+      <rect x="9" y="6" width="6" height="1.5" rx="0.75" fill="#34d399" />
+      <rect x="8" y="10" width="8" height="2.5" rx="1.25" fill="#10b981" fillOpacity="0.4" stroke="#10b981" strokeWidth="1" />
+      <rect x="8" y="14" width="8" height="2.5" rx="1.25" fill="#10b981" fillOpacity="0.4" stroke="#10b981" strokeWidth="1" />
+      <rect x="8" y="18" width="8" height="2.5" rx="1.25" fill="#10b981" fillOpacity="0.4" stroke="#10b981" strokeWidth="1" />
+    </svg>
+  )
+}
+
+function IconApproval({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="18" height="18" rx="4" fill="#f97316" fillOpacity="0.15" stroke="#f97316" strokeWidth="1.5" />
+      <path d="M8 12l3 3 5-6" stroke="#fb923c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 const navItems = [
   { href: "/dashboard",           label: "Dashboard",     Icon: IconDashboard },
   { href: "/dashboard/stats",       label: "Estadísticas",  Icon: IconStats },
@@ -266,9 +310,17 @@ const navItems = [
   { href: "/dashboard/ads",       label: "Google Ads",    Icon: IconAds },
   { href: "/dashboard/affiliates", label: "Afiliados",     Icon: IconAffiliates },
   { href: "/dashboard/leads",     label: "CRM WhatsApp", Icon: IconLeads },
-  { href: "/dashboard/radar",     label: "Radar",         Icon: IconRadar },
+  { href: "/dashboard/inbox",      label: "Inbox Unificado", Icon: IconInbox },
+  { href: "/dashboard/bulk",       label: "Bulk Scheduler",  Icon: IconBulk },
+  { href: "/dashboard/linkinbio",  label: "Link in Bio",     Icon: IconLinkBio },
+  { href: "/dashboard/aprobaciones", label: "Aprobaciones",  Icon: IconApproval },
+  { href: "/dashboard/radar", label: "Radar Competencia", Icon: IconRadar },
+  { href: "/dashboard/radar/recreations", label: "Mis Recreaciones", Icon: IconRadar },
+  { href: "/dashboard/hashtags", label: "Hashtag Monitor", Icon: IconRadar },
+  { href: "/dashboard/analytics/hours", label: "Horario Optimo", Icon: IconAnalytics },
   { href: '/dashboard/videos', label: 'Video IA', Icon: IconVideo },
-    { href: '/dashboard/abtests', label: 'A/B Tests', Icon: IconABTest },
+    { href: '/dashboard/monitor', label: 'Monitor Posts', Icon: IconAutopilot },
+  { href: '/dashboard/abtests', label: 'A/B Tests', Icon: IconABTest },
     { href: "/dashboard/autopilot", label: "Piloto Auto",   Icon: IconAutopilot },
   { href: "/dashboard/billing",   label: "Plan & Billing", Icon: IconBilling },
   { href: "/dashboard/agency",    label: "Agencia",       Icon: IconAgency },
