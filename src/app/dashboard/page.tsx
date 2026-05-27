@@ -1,25 +1,19 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import {
-  CheckCircle2, Clock, TrendingUp, AlertCircle,
-  Heart, Eye, MessageCircle, Zap, ArrowRight,
-  Lightbulb, BarChart3, Image, Calendar, Instagram,
-  Facebook, Link2, XCircle, WifiOff,
-} from "lucide-react"
 import Link from "next/link"
-import { ServiceStatusWidget } from "@/components/dashboard/ServiceStatusWidget"
 
 async function getDashboardData(tenantId: string) {
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-
   const [
-    published, scheduled, failed,
+    published, scheduled, failed, generating, pendingApproval,
     monthPosts, pendingComments, nextPost, recentPosts, socialAccounts,
   ] = await Promise.all([
     prisma.post.count({ where: { tenantId, status: "PUBLISHED" } }),
     prisma.post.count({ where: { tenantId, status: "SCHEDULED" } }),
     prisma.post.count({ where: { tenantId, status: "FAILED" } }),
+    prisma.post.count({ where: { tenantId, status: "GENERATING" } }),
+    prisma.post.count({ where: { tenantId, status: "PENDING_APPROVAL" } }),
     prisma.post.findMany({
       where: { tenantId, status: "PUBLISHED", publishedAt: { gte: monthStart } },
       select: { reach: true, likes: true, comments: true },
@@ -33,294 +27,292 @@ async function getDashboardData(tenantId: string) {
     prisma.post.findMany({
       where: { tenantId },
       orderBy: { createdAt: "desc" },
-      take: 6,
-      select: {
-        id: true, caption: true, type: true, status: true,
-        platform: true, reach: true, likes: true, publishedAt: true,
-      },
+      take: 8,
+      select: { id: true, caption: true, type: true, status: true, platform: true, reach: true, likes: true, publishedAt: true, thumbnailUrl: true },
     }),
     prisma.socialAccount.findMany({
       where: { tenantId, active: true },
       select: { platform: true, accountName: true, tokenExpiresAt: true },
     }),
   ])
-
   const monthReach = monthPosts.reduce((s, p) => s + (p.reach ?? 0), 0)
   const monthLikes = monthPosts.reduce((s, p) => s + (p.likes ?? 0), 0)
   const monthComments = monthPosts.reduce((s, p) => s + (p.comments ?? 0), 0)
-  const engagementRate = monthReach > 0
-    ? (((monthLikes + monthComments) / monthReach) * 100).toFixed(1)
-    : "0"
-
+  const engRate = monthReach > 0 ? (((monthLikes + monthComments) / monthReach) * 100).toFixed(1) : "0"
   return {
-    published, scheduled, failed,
-    monthPosts: monthPosts.length,
-    monthReach, monthLikes, monthComments,
-    engagementRate: Number(engagementRate),
-    pendingComments,
-    nextPost, recentPosts, socialAccounts,
+    published, scheduled, failed, generating, pendingApproval,
+    monthPosts: monthPosts.length, monthReach, monthLikes, monthComments, engagementRate: Number(engRate),
+    pendingComments, nextPost, recentPosts, socialAccounts,
   }
 }
 
-const STATUS_BADGE: Record<string, string> = {
-  PUBLISHED: "badge-published",
-  SCHEDULED: "badge-scheduled",
-  PENDING: "badge-pending",
-  GENERATING: "badge-pending",
-  FAILED: "badge-failed",
+const ST_COLOR: Record<string, string> = {
+  PUBLISHED: "#22c55e", SCHEDULED: "#a78bfa", PENDING_APPROVAL: "#f59e0b",
+  FAILED: "#ef4444", GENERATING: "#38bdf8", PUBLISHING: "#06b6d4",
 }
-const STATUS_LABEL: Record<string, string> = {
-  PUBLISHED: "Publicado", SCHEDULED: "Programado",
-  PENDING: "Pendiente", GENERATING: "Generando", FAILED: "Fallido",
+const ST_LABEL: Record<string, string> = {
+  PUBLISHED: "Publicado", SCHEDULED: "Programado", PENDING_APPROVAL: "Aprobación",
+  FAILED: "Fallido", GENERATING: "Generando", PENDING: "Pendiente",
 }
-const TYPE_EMOJI: Record<string, string> = {
-  FEED: "📷", STORY: "📱", REEL: "🎬", CAROUSEL: "🎠",
+const TYPE_LABEL: Record<string, string> = { FEED: "Feed", STORY: "Story", REEL: "Reel", CAROUSEL: "Carrusel" }
+
+function formatTime(d: Date) {
+  const diff = Math.floor((d.getTime() - Date.now()) / 1000)
+  if (diff < 0) return "pasado"
+  const h = Math.floor(diff / 3600); const m = Math.floor((diff % 3600) / 60)
+  if (h > 48) return `${Math.floor(h / 24)}d`
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
+}
+
+const C = {
+  bg: "#080c14", surf: "#0f1623", surf2: "#161d2e", surf3: "#1c2538",
+  border: "rgba(255,255,255,0.06)", text: "#e2e8f0", muted: "#64748b",
+  violet: "#7c3aed", violetLt: "#a78bfa", green: "#22c55e",
+  red: "#ef4444", amber: "#f59e0b", blue: "#3b82f6",
 }
 
 export default async function DashboardPage() {
   const session = await auth()
   const tenantId = session?.user?.tenantId
-  const name = session?.user?.name?.split(" ")[0] ?? ""
+  const name = session?.user?.name?.split(" ")[0] ?? "Usuario"
 
   const d = tenantId
     ? await getDashboardData(tenantId)
-    : {
-        published: 0, scheduled: 0, failed: 0, monthPosts: 0,
-        monthReach: 0, monthLikes: 0, monthComments: 0, engagementRate: 0,
-        pendingComments: 0, nextPost: null, recentPosts: [], socialAccounts: [],
-      }
+    : { published: 0, scheduled: 0, failed: 0, generating: 0, pendingApproval: 0, monthPosts: 0, monthReach: 0, monthLikes: 0, monthComments: 0, engagementRate: 0, pendingComments: 0, nextPost: null, recentPosts: [], socialAccounts: [] }
 
-  const igAccount = d.socialAccounts.find((a) => a.platform === "INSTAGRAM")
-  const fbAccount = d.socialAccounts.find((a) => a.platform === "FACEBOOK")
+  const igAccount = d.socialAccounts.find(a => a.platform === "INSTAGRAM")
+  const fbAccount = d.socialAccounts.find(a => a.platform === "FACEBOOK")
   const hasAccounts = d.socialAccounts.length > 0
-  const isEmpty = d.published === 0 && d.scheduled === 0
+  const hasActivity = d.published > 0 || d.scheduled > 0
+
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches"
 
   return (
-    <div className="p-4 md:p-8 space-y-4 md:space-y-6 max-w-6xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-100">
-            Bienvenido{name ? `, ${name}` : ""} 👋
-          </h1>
-          <p className="text-gray-500 mt-0.5 text-sm">
-            Resumen de tu actividad en redes sociales
-          </p>
-        </div>
-        {d.nextPost && (
-          <div className="hidden md:flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl px-4 py-2.5">
-            <Clock className="w-4 h-4 text-indigo-400 shrink-0" />
-            <div>
-              <p className="text-xs text-indigo-300 font-medium">Próximo post</p>
-              <p className="text-xs text-gray-400">
-                {TYPE_EMOJI[d.nextPost.type]} {d.nextPost.type} ·{" "}
-                {new Date(d.nextPost.scheduledAt!).toLocaleString("es-CL", {
-                  weekday: "short", hour: "2-digit", minute: "2-digit",
-                })}
-              </p>
-            </div>
+    <div style={{ padding: "28px 32px", minHeight: "100vh", background: C.bg, color: C.text }}>
+
+      {/* ── Header ── */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+          <div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, marginBottom: 4 }}>
+              {greeting},{" "}
+              <span style={{ background: "linear-gradient(90deg,#a78bfa,#60a5fa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{name}</span>
+            </h1>
+            <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>
+              {new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })}
+            </p>
           </div>
-        )}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Link href="/dashboard/monitor" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.25)", color: C.violetLt }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.green, boxShadow: `0 0 8px ${C.green}`, display: "inline-block" }} />
+              Monitor en vivo
+            </Link>
+            <Link href="/dashboard/posts" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "white", boxShadow: "0 4px 14px rgba(124,58,237,0.3)" }}>
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none"><path d="M13 3L4 14h8l-1 7 9-11h-8z" fill="white"/></svg>
+              Generar post
+            </Link>
+          </div>
+        </div>
       </div>
 
-      {/* ── Connected accounts status bar ── */}
-      <div className="card p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider shrink-0">Redes conectadas</span>
-          <div className="flex flex-wrap gap-2 flex-1">
-            <div className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium " + (igAccount ? "bg-pink-500/10 border-pink-500/30 text-pink-300" : "bg-gray-800/80 border-gray-700 text-gray-500")}>
-              <Instagram className="w-3.5 h-3.5" />
-              {igAccount ? (<><CheckCircle2 className="w-3 h-3 text-green-400" /><span>{igAccount.accountName}</span></>) : (<><XCircle className="w-3 h-3 text-gray-600" /><span>Instagram sin conectar</span></>)}
+      {/* ── Alerts ── */}
+      {d.pendingApproval > 0 && (
+        <Link href="/dashboard/aprobaciones" style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 10, marginBottom: 20, textDecoration: "none", background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.25)" }}>
+          <span style={{ fontSize: 16 }}>⚠️</span>
+          <span style={{ fontSize: 13, color: "#fde68a" }}><strong style={{ color: C.amber }}>{d.pendingApproval} post{d.pendingApproval > 1 ? "s" : ""}</strong> con imagen de stock esperando aprobación antes de publicarse</span>
+          <span style={{ marginLeft: "auto", fontSize: 11, color: C.amber, fontWeight: 600 }}>Revisar →</span>
+        </Link>
+      )}
+      {d.failed > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 10, marginBottom: 20, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)" }}>
+          <span style={{ fontSize: 16 }}>🔴</span>
+          <span style={{ fontSize: 13, color: "#fca5a5" }}><strong style={{ color: C.red }}>{d.failed} post{d.failed > 1 ? "s" : ""} fallidos</strong> — revisa el monitor para reintentar</span>
+        </div>
+      )}
+
+      {/* ── KPI grid ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 12, marginBottom: 24 }}>
+        {[
+          { label: "Publicados", value: d.published, color: C.green, icon: "✓", glow: "rgba(34,197,94,0.15)" },
+          { label: "Programados", value: d.scheduled, color: C.violetLt, icon: "◷", glow: "rgba(124,58,237,0.15)" },
+          { label: "Este mes", value: d.monthPosts, color: C.blue, icon: "📅", glow: "rgba(59,130,246,0.12)" },
+          { label: "Pendientes", value: d.pendingApproval, color: C.amber, icon: "⏳", glow: "rgba(245,158,11,0.12)" },
+          { label: "Fallidos", value: d.failed, color: C.red, icon: "✕", glow: "rgba(239,68,68,0.12)" },
+        ].map(k => (
+          <div key={k.label} style={{ background: C.surf, border: `1px solid ${k.glow.replace("0.12","0.2").replace("0.15","0.2")}`, borderRadius: 12, padding: "16px 18px", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: -10, right: -10, fontSize: 36, opacity: 0.06, pointerEvents: "none" }}>{k.icon}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: k.color, lineHeight: 1 }}>{k.value}</div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{k.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Engagement strip ── */}
+      {hasActivity && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 24 }}>
+          {[
+            { label: "Alcance mes", value: d.monthReach.toLocaleString(), color: "#c084fc" },
+            { label: "Likes mes", value: d.monthLikes.toLocaleString(), color: "#f472b6" },
+            { label: "Comentarios", value: d.monthComments.toLocaleString(), color: "#2dd4bf" },
+            { label: "Engagement", value: `${d.engagementRate}%`, color: "#fbbf24" },
+          ].map(m => (
+            <div key={m.label} style={{ background: C.surf2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 16px" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: m.color }}>{m.value}</div>
+              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{m.label}</div>
             </div>
-            <div className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium " + (fbAccount ? "bg-blue-500/10 border-blue-500/30 text-blue-300" : "bg-gray-800/80 border-gray-700 text-gray-500")}>
-              <Facebook className="w-3.5 h-3.5" />
-              {fbAccount ? (<><CheckCircle2 className="w-3 h-3 text-green-400" /><span>{fbAccount.accountName}</span></>) : (<><XCircle className="w-3 h-3 text-gray-600" /><span>Facebook sin conectar</span></>)}
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, alignItems: "start" }}>
+        {/* ── Left: recent posts ── */}
+        <div>
+          {/* Connected accounts */}
+          <div style={{ background: C.surf, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: "0.06em", textTransform: "uppercase" }}>Redes</span>
+            <div style={{ display: "flex", gap: 8, flex: 1 }}>
+              {[
+                { label: igAccount ? `IG: ${igAccount.accountName}` : "Instagram sin conectar", ok: !!igAccount, color: "#ec4899" },
+                { label: fbAccount ? `FB: ${fbAccount.accountName}` : "Facebook sin conectar", ok: !!fbAccount, color: "#3b82f6" },
+              ].map(a => (
+                <div key={a.label} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 500, background: a.ok ? `${a.color}18` : "rgba(100,116,139,0.1)", color: a.ok ? a.color : C.muted, border: `1px solid ${a.ok ? a.color + "30" : "rgba(100,116,139,0.15)"}` }}>
+                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: a.ok ? C.green : "#475569", boxShadow: a.ok ? `0 0 6px ${C.green}` : "none" }} />
+                  {a.label}
+                </div>
+              ))}
+            </div>
+            {!hasAccounts && (
+              <Link href="/dashboard/accounts" style={{ fontSize: 11, fontWeight: 600, color: C.violetLt, textDecoration: "none", background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.2)", padding: "4px 12px", borderRadius: 6 }}>Conectar →</Link>
+            )}
+          </div>
+
+          {/* Recent posts */}
+          {d.recentPosts.length > 0 && (
+            <div style={{ background: C.surf, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
+              <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Posts recientes</span>
+                <Link href="/dashboard/posts" style={{ fontSize: 11, color: C.violetLt, textDecoration: "none" }}>Ver todos →</Link>
+              </div>
+              {d.recentPosts.map((post, i) => {
+                const stColor = ST_COLOR[post.status] ?? C.muted
+                return (
+                  <div key={post.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 18px", borderBottom: i < d.recentPosts.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                    {/* thumbnail */}
+                    <div style={{ width: 38, height: 38, borderRadius: 8, background: C.surf3, flexShrink: 0, overflow: "hidden" }}>
+                      {(post as any).thumbnailUrl ? (
+                        <img src={(post as any).thumbnailUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>
+                          {post.type === "REEL" ? "🎬" : post.type === "STORY" ? "📱" : post.type === "CAROUSEL" ? "🎠" : "📷"}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>
+                        {post.caption.slice(0, 70)}{post.caption.length > 70 ? "…" : ""}
+                      </div>
+                      <div style={{ fontSize: 10, color: C.muted }}>
+                        {TYPE_LABEL[post.type] ?? post.type} · {post.platform.join(", ")}
+                        {post.reach ? ` · ${post.reach.toLocaleString()} alcance` : ""}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: stColor, background: `${stColor}18`, border: `1px solid ${stColor}30`, padding: "2px 8px", borderRadius: 20, flexShrink: 0 }}>
+                      {ST_LABEL[post.status] ?? post.status}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!hasActivity && hasAccounts && (
+            <div style={{ background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 12, padding: "28px 24px", textAlign: "center" }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>⚡</div>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: C.text, margin: "0 0 8px" }}>Cuentas conectadas — listo para publicar</h3>
+              <p style={{ fontSize: 13, color: C.muted, margin: "0 0 16px" }}>Genera tu primer post con IA. El sistema crea imagen, caption y hashtags automáticamente.</p>
+              <Link href="/dashboard/posts" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "white", boxShadow: "0 4px 14px rgba(124,58,237,0.3)" }}>
+                Generar primer post
+              </Link>
+            </div>
+          )}
+
+          {!hasAccounts && (
+            <div style={{ background: C.surf2, border: `1px solid ${C.border}`, borderRadius: 12, padding: "28px 24px", textAlign: "center" }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>📲</div>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: C.text, margin: "0 0 8px" }}>Conecta tus redes sociales</h3>
+              <p style={{ fontSize: 13, color: C.muted, margin: "0 0 16px" }}>Vincula tu Instagram y Facebook para que el sistema empiece a publicar contenido con IA.</p>
+              <Link href="/dashboard/accounts" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "white" }}>
+                Conectar cuenta
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* ── Right column ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Next post card */}
+          {d.nextPost && (
+            <div style={{ background: "rgba(124,58,237,0.07)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 12, padding: "16px" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.violetLt, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Próximo post</div>
+              <div style={{ fontSize: 12, color: C.text, marginBottom: 8, lineHeight: 1.5 }}>
+                {d.nextPost.caption.slice(0, 80)}{d.nextPost.caption.length > 80 ? "…" : ""}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ fontSize: 11, color: C.muted }}>{d.nextPost.platform.join(" · ")}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.violetLt, background: "rgba(124,58,237,0.15)", padding: "3px 8px", borderRadius: 6 }}>
+                  en {formatTime(new Date(d.nextPost.scheduledAt!))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Pending comments */}
+          {d.pendingComments > 0 && (
+            <Link href="/dashboard/comments" style={{ display: "block", background: "rgba(249,115,22,0.07)", border: "1px solid rgba(249,115,22,0.2)", borderRadius: 12, padding: "14px 16px", textDecoration: "none" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#fb923c", letterSpacing: "0.08em", textTransform: "uppercase" }}>Comentarios</span>
+                <span style={{ fontSize: 10, color: "#fb923c" }}>→</span>
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "#fed7aa" }}>{d.pendingComments}</div>
+              <div style={{ fontSize: 11, color: C.muted }}>sin responder</div>
+            </Link>
+          )}
+
+          {/* Quick actions */}
+          <div style={{ background: C.surf, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Acceso rápido</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {[
+                { href: "/dashboard/autopilot", label: "Piloto Automático", icon: "🤖", color: "#a78bfa" },
+                { href: "/dashboard/radar", label: "Radar Competencia", icon: "📡", color: "#c084fc" },
+                { href: "/dashboard/analytics", label: "Analytics", icon: "📊", color: "#22c55e" },
+                { href: "/dashboard/insights", label: "Insights IA", icon: "💡", color: "#fbbf24" },
+                { href: "/dashboard/media", label: "Biblioteca de Media", icon: "🖼", color: "#2dd4bf" },
+                { href: "/dashboard/brand", label: "Mi Marca", icon: "🎨", color: "#f472b6" },
+              ].map(a => (
+                <Link key={a.href} href={a.href} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, fontSize: 12, color: C.muted, textDecoration: "none", transition: "all 0.15s" }} className="quick-link">
+                  <span style={{ fontSize: 14 }}>{a.icon}</span>
+                  <span style={{ flex: 1 }}>{a.label}</span>
+                  <span style={{ fontSize: 10, color: "#2a3446" }}>→</span>
+                </Link>
+              ))}
             </div>
           </div>
-          {!hasAccounts ? (
-            <Link href="/dashboard/accounts" className="btn-primary text-xs py-1.5 px-3 shrink-0 flex items-center gap-1"><Link2 className="w-3 h-3" />Conectar</Link>
-          ) : (
-            <Link href="/dashboard/accounts" className="text-xs text-gray-500 hover:text-gray-300 transition-colors shrink-0 flex items-center gap-1">Gestionar <ArrowRight className="w-3 h-3" /></Link>
+
+          {/* Generating pill */}
+          {d.generating > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, background: "rgba(56,189,248,0.07)", border: "1px solid rgba(56,189,248,0.2)", fontSize: 12, color: "#7dd3fc" }}>
+              <span style={{ animation: "spin 1.5s linear infinite", display: "inline-block" }}>⟳</span>
+              <span><strong style={{ color: "#38bdf8" }}>{d.generating}</strong> post{d.generating > 1 ? "s" : ""} generándose ahora</span>
+            </div>
           )}
         </div>
       </div>
 
-      {hasAccounts && isEmpty && (
-        <div className="card border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/5 p-6">
-          <div className="flex items-start gap-4">
-            <div className="bg-indigo-500/20 p-3 rounded-xl shrink-0"><Zap className="w-6 h-6 text-indigo-400" /></div>
-            <div>
-              <h3 className="font-semibold text-gray-100 mb-1">Cuentas conectadas — listo para publicar</h3>
-              <p className="text-gray-400 text-sm mb-4">Genera tu primer post con IA. El sistema crea la imagen, caption y hashtags, y te envía aprobación por WhatsApp.</p>
-              <div className="flex gap-3">
-                <Link href="/dashboard/posts" className="btn-primary text-sm py-1.5 px-3 flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" />Generar primer post</Link>
-                <Link href="/dashboard/brand" className="btn-secondary text-sm py-1.5 px-3">Revisar marca</Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isEmpty && !hasAccounts ? (
-        /* ── Empty state ── */
-        <div className="card border border-indigo-500/30 bg-indigo-500/5 p-6">
-          <div className="flex items-start gap-4">
-            <div className="bg-indigo-500/20 p-3 rounded-lg shrink-0">
-              <TrendingUp className="w-6 h-6 text-indigo-400" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-100 mb-1">
-                Configura tu primera cuenta de redes sociales
-              </h3>
-              <p className="text-gray-400 text-sm mb-4">
-                Conecta tu Instagram y Facebook para que el sistema empiece a generar y publicar contenido automáticamente.
-              </p>
-              <div className="flex gap-3">
-                <Link href="/dashboard/accounts" className="btn-primary text-sm py-1.5 px-3">
-                  Conectar cuenta
-                </Link>
-                <Link href="/dashboard/brand" className="btn-secondary text-sm py-1.5 px-3">
-                  Configurar marca
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* ── Post stats ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            {[
-              { label: "Publicados", value: d.published, icon: CheckCircle2, color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20" },
-              { label: "Programados", value: d.scheduled, icon: Clock, color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20" },
-              { label: "Este mes", value: d.monthPosts, icon: Calendar, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-              { label: "Fallidos", value: d.failed, icon: AlertCircle, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20" },
-            ].map((c) => (
-              <div key={c.label} className={`card border ${c.border} flex items-center gap-4`}>
-                <div className={`${c.bg} ${c.border} border p-3 rounded-lg shrink-0`}>
-                  <c.icon className={`w-5 h-5 ${c.color}`} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-100">{c.value}</p>
-                  <p className="text-sm text-gray-500">{c.label}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* ── Engagement metrics ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            {[
-              { label: "Alcance del mes", value: d.monthReach.toLocaleString(), icon: Eye, color: "text-purple-400" },
-              { label: "Likes del mes", value: d.monthLikes.toLocaleString(), icon: Heart, color: "text-pink-400" },
-              { label: "Comentarios", value: d.monthComments.toLocaleString(), icon: MessageCircle, color: "text-teal-400" },
-              { label: "Tasa engagement", value: `${d.engagementRate}%`, icon: TrendingUp, color: "text-yellow-400" },
-            ].map((c) => (
-              <div key={c.label} className="card p-4">
-                <c.icon className={`w-4 h-4 ${c.color} mb-2`} />
-                <p className="text-xl font-bold text-gray-100">{c.value}</p>
-                <p className="text-xs text-gray-500">{c.label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* ── Service status ── */}
-          <ServiceStatusWidget />
-
-          {/* ── Quick actions + alerts ── */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-            {/* Pending comments alert */}
-            {d.pendingComments > 0 && (
-              <Link href="/dashboard/comments" className="card border border-orange-500/20 bg-orange-500/5 p-4 hover:border-orange-500/40 transition-colors group">
-                <div className="flex items-center justify-between mb-2">
-                  <MessageCircle className="w-5 h-5 text-orange-400" />
-                  <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-orange-400 transition-colors" />
-                </div>
-                <p className="text-2xl font-bold text-orange-300">{d.pendingComments}</p>
-                <p className="text-xs text-gray-500">comentarios sin responder</p>
-              </Link>
-            )}
-
-            {/* Insights shortcut */}
-            <Link href="/dashboard/insights" className="card border border-yellow-500/20 bg-yellow-500/5 p-4 hover:border-yellow-500/40 transition-colors group">
-              <div className="flex items-center justify-between mb-2">
-                <Lightbulb className="w-5 h-5 text-yellow-400" />
-                <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-yellow-400 transition-colors" />
-              </div>
-              <p className="text-sm font-semibold text-gray-200">Insights IA</p>
-              <p className="text-xs text-gray-500">Sugerencias y mejores horarios</p>
-            </Link>
-
-            {/* Analytics shortcut */}
-            <Link href="/dashboard/analytics" className="card border border-blue-500/20 bg-blue-500/5 p-4 hover:border-blue-500/40 transition-colors group">
-              <div className="flex items-center justify-between mb-2">
-                <BarChart3 className="w-5 h-5 text-blue-400" />
-                <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-blue-400 transition-colors" />
-              </div>
-              <p className="text-sm font-semibold text-gray-200">Analytics</p>
-              <p className="text-xs text-gray-500">Métricas detalladas y tendencias</p>
-            </Link>
-
-            {/* Generate post shortcut */}
-            <Link href="/dashboard/posts" className="card border border-indigo-500/20 bg-indigo-500/5 p-4 hover:border-indigo-500/40 transition-colors group">
-              <div className="flex items-center justify-between mb-2">
-                <Zap className="w-5 h-5 text-indigo-400" />
-                <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-indigo-400 transition-colors" />
-              </div>
-              <p className="text-sm font-semibold text-gray-200">Generar post</p>
-              <p className="text-xs text-gray-500">Feed, Story, Reel o Carrusel</p>
-            </Link>
-
-            {/* Media library shortcut */}
-            <Link href="/dashboard/media" className="card border border-teal-500/20 bg-teal-500/5 p-4 hover:border-teal-500/40 transition-colors group">
-              <div className="flex items-center justify-between mb-2">
-                <Image className="w-5 h-5 text-teal-400" />
-                <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-teal-400 transition-colors" />
-              </div>
-              <p className="text-sm font-semibold text-gray-200">Media Library</p>
-              <p className="text-xs text-gray-500">Imágenes y videos generados</p>
-            </Link>
-          </div>
-        </>
-      )}
-
-      {/* ── Recent posts ── */}
-      {d.recentPosts.length > 0 && (
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-100 flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-indigo-400" />
-              Posts recientes
-            </h2>
-            <Link href="/dashboard/posts" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1">
-              Ver todos <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {d.recentPosts.map((post) => (
-              <div key={post.id} className="flex items-center justify-between py-2.5 border-b border-gray-800 last:border-0 gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center text-sm shrink-0">
-                    {TYPE_EMOJI[post.type] ?? "📄"}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm text-gray-200 truncate max-w-xs">
-                      {post.caption.slice(0, 65)}{post.caption.length > 65 ? "…" : ""}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {post.platform.join(" · ")}
-                      {post.reach ? ` · ${post.reach.toLocaleString()} alcance` : ""}
-                    </p>
-                  </div>
-                </div>
-                <span className={`text-xs px-2 py-1 rounded-full border shrink-0 ${STATUS_BADGE[post.status] ?? "badge-pending"}`}>
-                  {STATUS_LABEL[post.status] ?? post.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <style>{`.quick-link:hover { background: rgba(255,255,255,0.04) !important; color: #94a3b8 !important; } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }

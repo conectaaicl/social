@@ -4,71 +4,55 @@
 
 @layer base {
   :root {
-    --background: 3 7 18;        /* gray-950 */
-    --surface: 17 24 39;         /* gray-900 */
-    --surface-2: 31 41 55;       /* gray-800 */
-    --border: 55 65 81;          /* gray-700 */
-    --text-primary: 243 244 246; /* gray-100 */
-    --text-secondary: 156 163 175; /* gray-400 */
-    --accent: 99 102 241;        /* indigo-500 */
-    --accent-hover: 79 70 229;   /* indigo-600 */
-    --success: 34 197 94;        /* green-500 */
-    --warning: 234 179 8;        /* yellow-500 */
-    --danger: 239 68 68;         /* red-500 */
+    --background: 8 12 20;
+    --surface: 15 22 35;
+    --surface-2: 22 29 46;
+    --border: 42 52 70;
+    --text-primary: 226 232 240;
+    --text-secondary: 100 116 139;
+    --accent: 124 58 237;
+    --accent-hover: 109 40 217;
+    --success: 34 197 94;
+    --warning: 245 158 11;
+    --danger: 239 68 68;
   }
 }
 
 @layer base {
-  * {
-    @apply border-gray-700;
-  }
-  body {
-    @apply bg-gray-950 text-gray-100;
-  }
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-gray-900;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-gray-700 rounded-full;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-600;
-  }
+  * { border-color: rgba(255,255,255,0.06); }
+  body { background: #080c14; color: #e2e8f0; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: #0f1623; }
+  ::-webkit-scrollbar-thumb { background: #2a3446; border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: #374461; }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    box-shadow: 0 4px 16px rgba(124,58,237,0.25);
   }
   .btn-secondary {
-    @apply bg-gray-800 hover:bg-gray-700 text-gray-100 font-medium px-4 py-2 rounded-lg border border-gray-700 transition-colors duration-200;
+    @apply text-slate-200 font-medium px-4 py-2 rounded-lg transition-colors duration-200;
+    background: #161d2e;
+    border: 1px solid rgba(255,255,255,0.07);
   }
+  .btn-secondary:hover { background: #1c2538; }
   .card {
-    @apply bg-gray-900 border border-gray-800 rounded-xl p-6;
+    @apply rounded-xl p-6;
+    background: #0f1623;
+    border: 1px solid rgba(255,255,255,0.06);
   }
   .input {
-    @apply bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full transition-all duration-200;
+    @apply rounded-lg px-4 py-2.5 text-slate-200 placeholder-slate-600 focus:outline-none w-full transition-all duration-200;
+    background: #161d2e;
+    border: 1px solid rgba(255,255,255,0.08);
   }
-  .label {
-    @apply text-sm font-medium text-gray-300 mb-1.5 block;
-  }
-  .badge-published {
-    @apply bg-green-500/10 text-green-400 border border-green-500/20 text-xs px-2 py-0.5 rounded-full;
-  }
-  .badge-scheduled {
-    @apply bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs px-2 py-0.5 rounded-full;
-  }
-  .badge-pending {
-    @apply bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 text-xs px-2 py-0.5 rounded-full;
-  }
-  .badge-failed {
-    @apply bg-red-500/10 text-red-400 border border-red-500/20 text-xs px-2 py-0.5 rounded-full;
-  }
-  .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
+  .input:focus { border-color: rgba(124,58,237,0.5); box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
+  .label { @apply text-sm font-medium text-slate-300 mb-1.5 block; }
+  .badge-published { @apply text-xs px-2 py-0.5 rounded-full; background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.2); }
+  .badge-scheduled  { @apply text-xs px-2 py-0.5 rounded-full; background: rgba(124,58,237,0.1); color: #a78bfa; border: 1px solid rgba(124,58,237,0.2); }
+  .badge-pending    { @apply text-xs px-2 py-0.5 rounded-full; background: rgba(245,158,11,0.1); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); }
+  .badge-failed     { @apply text-xs px-2 py-0.5 rounded-full; background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
 }
