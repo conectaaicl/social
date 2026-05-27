@@ -63,7 +63,6 @@ function buildVF(s: SlideSpec): string {
   if (s.label) {
     const lc = s.labelColor || '7c3aed'
     filters.push(`drawtext=fontfile='${FONT_BOLD}':text='${ffEsc(s.label)}':fontsize=22:fontcolor=0x${lc}:x=(w-text_w)/2:y=230`)
-    filters.push(`drawbox=x=(w-text_w)/2-8:y=258:w=text_w+16:h=2:color=0x${lc}:t=fill:enable='between(t\\,0\\,99)'`)
   }
 
   const mainSize = s.mainSize ?? 72

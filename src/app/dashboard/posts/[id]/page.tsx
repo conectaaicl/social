@@ -52,6 +52,9 @@ export default function PostDetailPage() {
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [generatingImg, setGeneratingImg] = useState(false)
+  const [showPicker, setShowPicker] = useState(false)
+  const [mediaItems, setMediaItems] = useState<Array<{id:string;url:string;type:string}>>([]) 
+  const [loadingMedia, setLoadingMedia] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [imageStyle, setImageStyle] = useState<string>('catalogo')
@@ -138,6 +141,37 @@ export default function PostDetailPage() {
     }
   }
 
+  const openMediaPicker = async () => {
+    setShowPicker(true)
+    if (mediaItems.length === 0) {
+      setLoadingMedia(true)
+      const r = await fetch("/api/media?limit=40&type=IMAGE")
+      const d = await r.json()
+      setMediaItems(d.items ?? [])
+      setLoadingMedia(false)
+    }
+  }
+
+  const pickMedia = async (url: string) => {
+    setShowPicker(false)
+    setSaving(true)
+    setMsg(null)
+    try {
+      const res = await fetch("/api/posts/" + id, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mediaUrl: url }),
+      })
+      const d = await res.json()
+      if (d.success) {
+        setPost(prev => prev ? { ...prev, mediaUrls: [url] } : prev)
+        setMsg({ type: "ok", text: "Imagen actualizada" })
+      } else {
+        setMsg({ type: "err", text: d.error ?? "Error" })
+      }
+    } finally { setSaving(false) }
+  }
+
   const deletePost = async () => {
     if (!confirm('Eliminar este post permanentemente?')) return
     setDeleting(true)
@@ -164,6 +198,7 @@ export default function PostDetailPage() {
   const isEditable = !['PUBLISHED', 'PUBLISHING'].includes(post.status)
 
   return (
+    <>
     <div className="flex flex-col min-h-screen">
       {/* Header */}
       <div className="px-6 py-4 border-b border-white/5 flex items-center gap-4 sticky top-0 z-10 bg-ink">
@@ -290,6 +325,11 @@ export default function PostDetailPage() {
                 {generatingImg ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
                 {generatingImg ? 'Generando...' : 'Generar imagen IA'}
               </button>
+              <button onClick={openMediaPicker}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-white/10 text-white/60 hover:text-white hover:border-white/20 rounded-xl text-sm transition">
+                <ImageIcon size={14} />
+                Elegir de biblioteca
+              </button>
             </div>
           )}
         </div>
@@ -391,5 +431,40 @@ export default function PostDetailPage() {
         </div>
       </div>
     </div>
+
+    {/* Media library picker modal */}
+    {showPicker && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:"rgba(0,0,0,0.8)"}} onClick={() => setShowPicker(false)}>
+        <div className="bg-gray-950 border border-white/10 rounded-2xl w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
+            <h3 className="text-white font-semibold">Biblioteca de imágenes</h3>
+            <button onClick={() => setShowPicker(false)} className="text-white/40 hover:text-white text-xl leading-none">×</button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            {loadingMedia ? (
+              <div className="flex items-center justify-center py-12"><Loader2 size={24} className="animate-spin text-white/40" /></div>
+            ) : mediaItems.length === 0 ? (
+              <div className="text-center py-12 text-white/30 text-sm">Sin imágenes en biblioteca. Sube fotos en la sección Media.</div>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {mediaItems.map(item => (
+                  <button key={item.id} onClick={() => pickMedia(item.url)}
+                    className="aspect-square rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-400 transition relative group">
+                    <img src={item.url} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-brand-500/0 group-hover:bg-brand-500/20 transition flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 text-white text-xs font-medium bg-brand-600 px-2 py-1 rounded-lg transition">Usar</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="px-5 py-3 border-t border-white/8 text-xs text-white/30">
+            Haz clic en una imagen para usarla en este post
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

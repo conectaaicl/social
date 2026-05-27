@@ -6,6 +6,7 @@ import {
   publishInstagramReel,
   publishFacebookPost,
   publishFacebookStory,
+  publishInstagramCarousel,
 } from "@/lib/meta"
 import { publishTikTokVideo, publishTikTokPhoto, refreshTikTokToken } from "@/lib/tiktok"
 import { publishLinkedInPost, refreshLinkedInToken } from "@/lib/linkedin"
@@ -52,6 +53,8 @@ export async function publishPost(postId: string, tenantId: string) {
             metaId = await publishInstagramStory(account.accountId, account.accessToken, mediaUrl)
           } else if (post.type === "REEL") {
             metaId = await publishInstagramReel(account.accountId, account.accessToken, mediaUrl, fullCaption)
+          } else if (post.type === "CAROUSEL" && post.mediaUrls.length > 1) {
+            metaId = await publishInstagramCarousel(account.accountId, account.accessToken, post.mediaUrls, fullCaption)
           } else {
             metaId = await publishInstagramFeed(account.accountId, account.accessToken, mediaUrl, fullCaption)
           }
@@ -181,7 +184,7 @@ export async function publishPost(postId: string, tenantId: string) {
     console.error(`Publish error for post ${postId}:`, err)
     await prisma.post.update({
       where: { id: postId },
-      data: { status: "FAILED", failReason: err.message, failedAt: new Date() },
+      data: { status: "FAILED", failReason: err.message.slice(0, 500), failedAt: new Date() },
     })
     const ownerEmail = post.tenant.users[0]?.email
     if (ownerEmail) {

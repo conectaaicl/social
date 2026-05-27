@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
+import { createOAuthState } from "@/lib/oauth-state"
 
-// pages_manage_posts y business_management requieren App Review en Meta
-// Para desarrollo usamos solo los scopes básicos aprobados
 const META_SCOPES = [
   "pages_show_list",
   "pages_read_engagement",
@@ -18,11 +17,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 
-  const state = Buffer.from(
-    JSON.stringify({ tenantId: session.user.tenantId, userId: session.user.id, ts: Date.now() })
-  ).toString("base64url")
-
-  const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/social/callback`
+  const state = createOAuthState(session.user.tenantId, session.user.id)
+  const callbackUrl = process.env.NEXT_PUBLIC_APP_URL + "/api/social/callback"
 
   const oauthUrl = new URL("https://www.facebook.com/v21.0/dialog/oauth")
   oauthUrl.searchParams.set("client_id", process.env.META_APP_ID!)

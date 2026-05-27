@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { verifyOAuthState } from "@/lib/oauth-state"
 import { prisma } from "@/lib/prisma"
 import { exchangeForLongLivedToken, getUserPages, getIGUserId } from "@/lib/meta"
 
@@ -19,9 +20,8 @@ export async function GET(req: NextRequest) {
 
   let tenantId: string
   try {
-    const state = JSON.parse(Buffer.from(stateRaw, "base64url").toString())
-    tenantId = state.tenantId
-    if (!tenantId) throw new Error("No tenantId in state")
+    const { tenantId: tid } = verifyOAuthState(stateRaw)
+    tenantId = tid
   } catch {
     return NextResponse.redirect(`${appUrl}/dashboard/accounts?error=invalid_state`)
   }

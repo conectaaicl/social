@@ -8,6 +8,7 @@ const updateSchema = z.object({
   hashtags: z.string().optional(),
   scheduledAt: z.string().datetime().optional(),
   status: z.enum(["PENDING", "SCHEDULED", "FAILED"]).optional(),
+  mediaUrl: z.string().url().optional(),
 })
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -44,8 +45,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const updated = await prisma.post.update({
     where: { id: params.id },
     data: {
-      ...parsed.data,
-      scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : undefined,
+      ...(parsed.data.caption !== undefined && { caption: parsed.data.caption }),
+      ...(parsed.data.hashtags !== undefined && { hashtags: parsed.data.hashtags }),
+      ...(parsed.data.status !== undefined && { status: parsed.data.status }),
+      ...(parsed.data.scheduledAt ? { scheduledAt: new Date(parsed.data.scheduledAt) } : {}),
+      ...(parsed.data.mediaUrl ? { mediaUrls: [parsed.data.mediaUrl] } : {}),
     },
   })
 

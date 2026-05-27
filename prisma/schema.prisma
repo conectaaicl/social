@@ -133,6 +133,8 @@ model Tenant {
   socialLeads     SocialLead[]
   winningPatterns WinningPattern[]
   competitors     Competitor[]
+  hashtagMonitors HashtagMonitor[]
+  bioPage         BioPage?
   videoScripts    VideoScript[]
   abTests         ABTest[]
 
@@ -231,6 +233,8 @@ model Post {
   publishedAt     DateTime?
   failedAt        DateTime?
   failReason      String?
+  attempts        Int       @default(0)
+  nextAttemptAt   DateTime?
 
   metaPostId      String?     // ID retornado por Meta al publicar
   approvalToken   String?     // token único para correlacionar aprobación WA
@@ -251,7 +255,11 @@ model Post {
   postComments    PostComment[]
   adCampaigns     AdCampaign[]
   calendarSlot    CalendarSlot?
+  approval        PostApproval?
 
+  @@index([tenantId, status])
+  @@index([status, scheduledAt])
+  @@index([tenantId, scheduledAt])
   @@map("posts")
 }
 
@@ -274,6 +282,7 @@ model PostComment {
   tenant          Tenant    @relation(fields: [tenantId], references: [id])
   tenantId        String
 
+  @@index([tenantId, replied])
   @@map("post_comments")
 }
 
@@ -296,6 +305,8 @@ model MediaItem {
   tenant      Tenant      @relation(fields: [tenantId], references: [id])
   tenantId    String
 
+  @@index([tenantId])
+  @@index([tenantId, type])
   @@map("media_items")
 }
 
@@ -330,6 +341,7 @@ model AdCampaign {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  @@index([tenantId, status])
   @@map("ad_campaigns")
 }
 
@@ -516,6 +528,7 @@ model SocialLead {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   @@index([tenantId])
+  @@index([tenantId, stage])
   @@map("social_leads")
 }
 
@@ -641,3 +654,103 @@ model ABTest {
   @@index([tenantId])
   @@map("ab_tests")
 }
+
+model HashtagMonitor {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  hashtag   String
+  active    Boolean  @default(true)
+  lastScan  DateTime?
+  postsFound Int     @default(0)
+  createdAt DateTime @default(now())
+
+  leads     HashtagLead[]
+
+  @@unique([tenantId, hashtag])
+  @@index([tenantId])
+  @@map("hashtag_monitors")
+}
+
+model HashtagLead {
+  id          String   @id @default(cuid())
+  monitorId   String
+  monitor     HashtagMonitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  tenantId    String
+  postId      String
+  username    String
+  caption     String?
+  mediaUrl    String?
+  postUrl     String?
+  likesCount  Int      @default(0)
+  commentsCount Int    @default(0)
+  followersCount Int?
+  sentiment      String?
+  sentimentScore Float?
+  bio         String?
+  converted   Boolean  @default(false)
+  scannedAt   DateTime @default(now())
+
+  @@unique([monitorId, postId])
+  @@index([tenantId])
+  @@index([monitorId, scannedAt])
+  @@map("hashtag_leads")
+}
+
+// ─── Link-in-Bio ────────────────────────────────────────────────────────────
+
+model BioPage {
+  id          String    @id @default(cuid())
+  tenantId    String    @unique
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title       String?
+  description String?
+  avatarUrl   String?
+  theme       String    @default("dark") // dark | light | brand
+  published   Boolean   @default(true)
+  links       BioLink[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("bio_pages")
+}
+
+model BioLink {
+  id        String   @id @default(cuid())
+  bioPageId String
+  bioPage   BioPage  @relation(fields: [bioPageId], references: [id], onDelete: Cascade)
+  label     String
+  url       String
+  icon      String?  // emoji or icon name
+  utmSource String   @default("bio")
+  utmMedium String   @default("social")
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  clicks    Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([bioPageId, sortOrder])
+  @@map("bio_links")
+}
+
+// ─── Agency Approval Workflow ────────────────────────────────────────────────
+
+model PostApproval {
+  id             String   @id @default(cuid())
+  postId         String   @unique
+  post           Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tenantId       String
+  approverEmail  String?
+  approverName   String?
+  token          String   @unique @default(cuid())
+  status         String   @default("pending")  // pending | approved | rejected | expired
+  comment        String?
+  requestedAt    DateTime @default(now())
+  respondedAt    DateTime?
+  expiresAt      DateTime
+
+  @@index([token])
+  @@index([tenantId, status])
+  @@map("post_approvals")
+}
+

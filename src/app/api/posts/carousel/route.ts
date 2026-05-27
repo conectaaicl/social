@@ -12,6 +12,10 @@ const SLIDE_THEMES = [
   "solution or benefit your product/service provides",
   "proof — result, testimonial, or before/after",
   "how it works — simple 3-step process",
+  "objection handling — address the main doubt or hesitation",
+  "social proof — customer reviews, numbers, awards",
+  "comparison — before vs after or competitor vs your brand",
+  "exclusive tip — insider advice only experts know",
   "call to action — save this post and contact us",
 ]
 
@@ -20,7 +24,11 @@ const TIPS_THEMES = [
   "tip 1 — el más sorprendente o contraintuitivo",
   "tip 2 — el más práctico y fácil de aplicar hoy",
   "tip 3 — el más valioso o diferenciador",
-  "resumen visual de los 3 tips con checklist",
+  "tip 4 — el que más dudas genera en los clientes",
+  "tip 5 — error más común que debes evitar",
+  "tip 6 — herramienta o recurso que facilita todo",
+  "tip 7 — el que la mayoría no conoce todavía",
+  "tip 8 — el que genera más resultados rápido",
   "llamado a la acción — guarda este post y escríbenos",
 ]
 
@@ -99,7 +107,7 @@ export async function POST(req: NextRequest) {
   })
 
   const themes = getThemes(template)
-  const slideCount = Math.min(slides, 6)
+  const slideCount = Math.min(Math.max(Number(slides) || 6, 3), 10)
   const negativePrompt = "blurry, distorted, watermark, text overlay, logo, low quality, cartoon, anime"
 
   const imagePromises = themes.slice(0, slideCount).map((theme, i) => {

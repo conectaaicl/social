@@ -135,6 +135,49 @@ export async function publishInstagramReel(
   return publishIGContainer(igUserId, containerId, userToken)
 }
 
+
+// ── Instagram Carousel (multi-image post) ────────────────────────────────────
+export async function publishInstagramCarousel(
+  igUserId: string,
+  accessToken: string,
+  mediaUrls: string[],
+  caption: string
+): Promise<string> {
+  const base = "https://graph.facebook.com/v21.0"
+
+  // 1. Create child containers (one per image, no caption)
+  const childIds: string[] = []
+  for (const url of mediaUrls.slice(0, 10)) {  // Max 10 slides
+    const r = await fetch(`${base}/${igUserId}/media`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_url: url, is_carousel_item: true, access_token: accessToken }),
+    })
+    const d = await r.json()
+    if (d.error) throw new Error(`Carousel child error: ${d.error.message}`)
+    childIds.push(d.id)
+  }
+
+  // 2. Create carousel container
+  const carouselR = await fetch(`${base}/${igUserId}/media`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ media_type: "CAROUSEL", caption, children: childIds.join(","), access_token: accessToken }),
+  })
+  const carouselD = await carouselR.json()
+  if (carouselD.error) throw new Error(`Carousel container error: ${carouselD.error.message}`)
+
+  // 3. Publish
+  const pubR = await fetch(`${base}/${igUserId}/media_publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ creation_id: carouselD.id, access_token: accessToken }),
+  })
+  const pubD = await pubR.json()
+  if (pubD.error) throw new Error(`Carousel publish error: ${pubD.error.message}`)
+  return pubD.id
+}
+
 export async function publishFacebookPost(
   pageId: string,
   pageToken: string,

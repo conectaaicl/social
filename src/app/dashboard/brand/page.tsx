@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { CheckCircle2, ChevronRight, ChevronLeft, Sparkles } from "lucide-react"
 
@@ -60,6 +60,32 @@ export default function BrandPage() {
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    fetch("/api/brand")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const bv = data?.brandVoice
+        const tenant = data?.tenant
+        if (bv) {
+          setForm(f => ({
+            ...f,
+            industry: bv.industry ?? f.industry,
+            description: bv.description ?? f.description,
+            tone: bv.tone ?? f.tone,
+            keywords: Array.isArray(bv.keywords) ? bv.keywords.join(", ") : (bv.keywords ?? ""),
+            products: Array.isArray(bv.products) ? bv.products.join(", ") : (bv.products ?? ""),
+            targetAudience: bv.targetAudience ?? f.targetAudience,
+            language: bv.language ?? f.language,
+            customPrompt: bv.customPrompt ?? "",
+            contentMix: (bv.contentMix && typeof bv.contentMix === "object") ? bv.contentMix : f.contentMix,
+            logoUrl: tenant?.logo ?? "",
+          }))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
 
   function update(field: keyof FormData, value: any) {
     setForm((f) => ({ ...f, [field]: value }))

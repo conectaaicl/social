@@ -4,9 +4,9 @@ import { processApprovalResponse } from "@/lib/approval-pipeline"
 // Evolution API sends POST with JSON payload for MESSAGES_UPSERT event
 export async function POST(req: NextRequest) {
   const secret = process.env.EVOLUTION_WEBHOOK_SECRET
-  if (secret) {
-    const provided = req.headers.get('x-evolution-secret') || req.headers.get('x-webhook-secret') || ''
-    if (provided !== secret) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const provided = req.headers.get('x-evolution-secret') || req.headers.get('x-webhook-secret') || ''
+  if (!secret || provided !== secret) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
   try {
     const payload = await req.json()

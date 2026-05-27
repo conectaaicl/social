@@ -1,3 +1,4 @@
+import { rateLimit } from "@/lib/rate-limit"
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -41,6 +42,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, { limit: 10, windowMs: 60 * 60 * 1000, keyPrefix: "videos" })
+  if (limited) return limited
+
   const session = await auth()
   if (!session?.user?.tenantId) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const tenantId = session.user.tenantId
@@ -111,7 +115,7 @@ async function generateVideoBackground(
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
-      model: 'claude-haiku-4-20250514', max_tokens: 1200,
+      model: 'claude-haiku-4-5-20251001', max_tokens: 1200,
       system: SYSTEM, messages: [{ role: 'user', content: prompt }],
     }),
   })

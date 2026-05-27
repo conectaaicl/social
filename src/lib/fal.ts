@@ -122,28 +122,88 @@ async function replicateGenerateImage(prompt: string, postType: string, negative
   return url
 }
 
-async function unsplashFallback(prompt: string, postType: string): Promise<string> {
-  const keywordMap: Record<string, string> = {
-    roller: "photo-1535126320463-c5c1b26b3e66",
-    cortina: "photo-1598928636135-d146006ff4be",
-    persiana: "photo-1618220179428-22790b461013",
-    blackout: "photo-1560448204-603b3fc33ddc",
-    interior: "photo-1554995207-c18c203602cb",
-    ventana: "photo-1586105251261-72a756497a11",
-    sala: "photo-1555041469-a586c61ea9bc",
-    dormitorio: "photo-1505693416388-ac5ce068fe85",
-    hogar: "photo-1484154218962-a197022b5858",
-    decoracion: "photo-1524758631624-e2822e304c36",
-    default: "photo-1535126320463-c5c1b26b3e66",
-  }
 
+const PEXELS_KEY = process.env.PEXELS_API_KEY ?? ""
+
+// Maps brand keywords + content context to English Pexels queries
+function buildPexelsQuery(prompt: string, postType: string): string {
   const lower = prompt.toLowerCase()
-  for (const [keyword, photoId] of Object.entries(keywordMap)) {
-    if (keyword !== "default" && lower.includes(keyword)) {
-      return `https://images.unsplash.com/${photoId}?w=1080&h=1080&fit=crop&q=80`
-    }
+  // Product terms
+  const termMap: Record<string, string> = {
+    roller: "roller blinds window living room",
+    cortina: "elegant window curtains modern interior",
+    persiana: "venetian blinds home decor",
+    blackout: "blackout curtains bedroom dark",
+    estores: "roman shades window treatment",
+    panel: "curtain panels floor to ceiling living room",
+    sheer: "sheer curtains natural light bedroom",
+    zebra: "zebra blinds modern home",
+    madera: "wood blinds natural light home",
+    techo: "ceiling curtains luxury interior",
+    terraza: "outdoor patio curtains luxury",
+    oficina: "office window blinds modern workspace",
   }
-  return `https://images.unsplash.com/${keywordMap.default}?w=1080&h=1080&fit=crop&q=80`
+  for (const [es, en] of Object.entries(termMap)) {
+    if (lower.includes(es)) return en
+  }
+  // Default by post type context
+  if (lower.includes("tip") || lower.includes("consejo") || lower.includes("decor")) {
+    return "modern interior design home decor curtains"
+  }
+  if (lower.includes("promo") || lower.includes("oferta") || lower.includes("descuento")) {
+    return "luxury home curtains window treatment elegant"
+  }
+  if (lower.includes("proyecto") || lower.includes("instalacion") || lower.includes("antes")) {
+    return "window blinds installation modern home"
+  }
+  return "window curtains home interior design professional"
+}
+
+async function pexelsFallback(prompt: string, postType: string): Promise<string> {
+  if (!PEXELS_KEY) return ""
+  const isVertical = postType === "STORY" || postType === "REEL"
+  const orientation = isVertical ? "portrait" : "landscape"
+  const query = buildPexelsQuery(prompt, postType)
+  try {
+    const res = await fetch(
+      "https://api.pexels.com/v1/search?query=" + encodeURIComponent(query) + "&per_page=10&orientation=" + orientation + "&size=large",
+      { headers: { Authorization: PEXELS_KEY }, signal: AbortSignal.timeout(10_000) }
+    )
+    if (!res.ok) throw new Error("Pexels " + res.status)
+    const data = await res.json()
+    const photos = data.photos ?? []
+    if (!photos.length) return ""
+    // Pick a random one from top results for variety
+    const photo = photos[Math.floor(Math.random() * Math.min(5, photos.length))]
+    const src = isVertical ? (photo.src?.portrait ?? photo.src?.large) : (photo.src?.large2x ?? photo.src?.large)
+    if (!src) return ""
+    console.log("Pexels image selected:", src)
+    return src
+  } catch (e: any) {
+    console.warn("Pexels failed:", e.message)
+    return ""
+  }
+}
+
+async function pollinationsFallback(prompt: string, postType: string, negativePrompt?: string): Promise<string> {
+  const isVertical = postType === "STORY" || postType === "REEL"
+  const width = isVertical ? 768 : 1080
+  const height = isVertical ? 1350 : 1080
+  const seed = Math.floor(Math.random() * 999999)
+  const encoded = encodeURIComponent(prompt.slice(0, 500))
+  const negEnc = negativePrompt ? "&negative=" + encodeURIComponent(negativePrompt.slice(0, 200)) : ""
+  const url = "https://image.pollinations.ai/prompt/" + encoded + "?width=" + width + "&height=" + height + "&nologo=true&model=flux&seed=" + seed + negEnc
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(60_000) })
+    if (!res.ok) throw new Error("Pollinations " + res.status)
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (buf.length < 5000) throw new Error("Pollinations: image too small")
+    return await saveToStaticServer(buf, "jpg")
+  } catch (e: any) {
+    console.warn("Pollinations failed:", e.message)
+    const isV = postType === "STORY" || postType === "REEL"
+    return "https://images.unsplash.com/photo-1598928636135-d146006ff4be?w=" + (isV ? 768 : 1080) + "&h=" + (isV ? 1350 : 1080) + "&fit=crop&q=80"
+  }
 }
 
 export async function generateImage(prompt: string, postType: string, style: ImageCreativeStyle = "catalogo", negativePrompt?: string): Promise<string> {
@@ -188,9 +248,13 @@ export async function generateImage(prompt: string, postType: string, style: Ima
     }
   }
 
-  // 3. Unsplash static fallback
-  console.warn("All AI providers failed, using Unsplash fallback")
-  return unsplashFallback(prompt, postType)
+  // 3. Pexels professional stock photos (free, requires PEXELS_API_KEY)
+  const pexelsUrl = await pexelsFallback(prompt, postType)
+  if (pexelsUrl) return pexelsUrl
+
+  // 4. Pollinations.ai free AI generation
+  console.warn("Pexels not available, using Pollinations AI")
+  return pollinationsFallback(prompt, postType, negativePrompt)
 }
 
 export async function generateImageVariants(prompt: string, postType: string, count = 2): Promise<string[]> {
@@ -233,7 +297,7 @@ export async function generateImageVariants(prompt: string, postType: string, co
   }
 
   // 3. Unsplash fallback
-  const base = await unsplashFallback(prompt, postType)
+  const base = await pollinationsFallback(prompt, postType)
   return Array(count).fill(base)
 }
 

@@ -8,15 +8,18 @@ export async function GET(req: NextRequest) {
   const tenantId = session.user.tenantId
 
   const { searchParams } = new URL(req.url)
-  const onlyViral = searchParams.get('viral') === 'true'
+  const onlyViral     = searchParams.get('viral') === 'true'
+  const onlyRecreated = searchParams.get('recreated') === 'true'
   const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
 
+  const where: any = { competitor: { tenantId } }
+  if (onlyViral)     where.isViral  = true
+  if (onlyRecreated) where.recreated = true
+
   const posts = await prisma.competitorPost.findMany({
-    where: onlyViral
-      ? { isViral: true, competitor: { tenantId } }
-      : { competitor: { tenantId } },
+    where,
     include: { competitor: { select: { name: true, handle: true, tier: true, avatarUrl: true } } },
-    orderBy: { viralScore: 'desc' },
+    orderBy: onlyRecreated ? { recreatedAt: 'desc' } : { viralScore: 'desc' },
     take: limit,
   })
   return NextResponse.json(posts)

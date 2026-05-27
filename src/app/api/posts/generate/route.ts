@@ -1,3 +1,4 @@
+import { rateLimit } from "@/lib/rate-limit"
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
@@ -21,6 +22,9 @@ const generateSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, { limit: 20, windowMs: 60 * 60 * 1000, keyPrefix: "generate" })
+  if (limited) return limited
+
   const session = await auth()
   if (!session?.user?.tenantId) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 

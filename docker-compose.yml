@@ -4,7 +4,7 @@ services:
     container_name: social_db
     environment:
       POSTGRES_USER: social
-      POSTGRES_PASSWORD: 
+      POSTGRES_PASSWORD: a9w6Vx3Mn2FEuyRY3voTrlhy5PSl9Smj
       POSTGRES_DB: social_db
     volumes:
       - pgdata:/var/lib/postgresql/data

@@ -52,7 +52,7 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
-      model: 'claude-haiku-4-20250514',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 150,
       messages: [{ role: 'user', content: prompt }],
     }),
