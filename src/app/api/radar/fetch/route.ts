@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { uploadBufferToR2 } from '@/lib/r2'
 
 const T = {
   likes:    parseInt(process.env.VIRAL_LIKES    || '300'),
@@ -10,6 +11,27 @@ const T = {
 
 function score(l = 0, c = 0, v = 0) { return l * 1 + c * 3 + v * 0.01 }
 function viral(l = 0, c = 0, v = 0) { return l >= T.likes || c >= T.comments || v >= T.views }
+
+async function mirrorToR2(url: string, postId: string): Promise<string | null> {
+  if (!url) return null
+  // Already in R2
+  const r2Public = process.env.CLOUDFLARE_R2_PUBLIC_URL || ''
+  if (url.startsWith(r2Public)) return url
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SocialBot/1.0)' },
+      signal: AbortSignal.timeout(15000),
+    })
+    if (!res.ok) return null
+    const buf = Buffer.from(await res.arrayBuffer())
+    const ct  = res.headers.get('content-type') || 'image/jpeg'
+    const ext = ct.includes('png') ? 'png' : ct.includes('webp') ? 'webp' : 'jpg'
+    const key = 'radar/' + postId + '.' + ext
+    return await uploadBufferToR2(key, buf, ct)
+  } catch {
+    return null
+  }
+}
 
 export async function GET(req: NextRequest) {
   const secret = req.headers.get('x-cron-secret')
@@ -60,7 +82,8 @@ export async function GET(req: NextRequest) {
       const posts = profile.latestPosts || []
       if (!posts.length) continue
 
-      const postsData = posts.map((post: any) => {
+      // Process posts in parallel (mirror images to R2)
+      const postsData = await Promise.all(posts.map(async (post: any) => {
         const l = post.likesCount || 0
         const c = post.commentsCount || 0
         const v = post.videoViewCount || 0
@@ -68,11 +91,15 @@ export async function GET(req: NextRequest) {
         const iv = viral(l, c, v)
         if (iv) viralCount++
         fetched++
+
+        const rawUrl = post.displayUrl || null
+        const cachedUrl = rawUrl ? await mirrorToR2(rawUrl, post.id || String(Date.now())) : null
+
         return {
           competitorId:  comp.id,
           postId:        post.id,
           caption:       post.caption || null,
-          mediaUrl:      post.displayUrl || null,
+          mediaUrl:      cachedUrl || rawUrl,
           mediaType:     post.type || null,
           postUrl:       post.url || null,
           likesCount:    l,
@@ -82,7 +109,7 @@ export async function GET(req: NextRequest) {
           viralScore:    s,
           postedAt:      post.timestamp ? new Date(post.timestamp) : null,
         }
-      })
+      }))
 
       const existingIds = await prisma.competitorPost.findMany({
         where: { competitorId: comp.id, postId: { in: postsData.map((p: any) => p.postId) } },
@@ -100,7 +127,11 @@ export async function GET(req: NextRequest) {
       await Promise.all(toUpdate.map((p: any) =>
         prisma.competitorPost.update({
           where: { competitorId_postId: { competitorId: comp.id, postId: p.postId } },
-          data: { likesCount: p.likesCount, commentsCount: p.commentsCount, viewsCount: p.viewsCount, isViral: p.isViral, viralScore: p.viralScore },
+          data: {
+            likesCount: p.likesCount, commentsCount: p.commentsCount,
+            viewsCount: p.viewsCount, isViral: p.isViral, viralScore: p.viralScore,
+            ...(p.mediaUrl ? { mediaUrl: p.mediaUrl } : {}),
+          },
         })
       ))
     }

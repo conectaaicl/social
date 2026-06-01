@@ -121,3 +121,25 @@ export async function publishLinkedInPost(
   if (!res.ok) throw new Error("LinkedIn post failed: " + await res.text())
   return res.headers.get("x-restli-id") ?? "linkedin-posted"
 }
+
+export async function getLinkedInPostComments(accessToken: string, shareUrn: string) {
+  const encoded = encodeURIComponent(shareUrn)
+  const res = await fetch(`https://api.linkedin.com/v2/socialActions/${encoded}/comments?count=50`, {
+    headers: {
+      Authorization: "Bearer " + accessToken,
+      "X-Restli-Protocol-Version": "2.0.0",
+    },
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error("LinkedIn comments failed: " + err)
+  }
+  const data = await res.json()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data.elements ?? []).map((el: any) => ({
+    id: el.id as string,
+    text: (el.message?.text ?? "") as string,
+    authorName: (el.actor?.localizedName ?? el.actor?.id ?? "Usuario") as string,
+    createdAt: el.created?.time ? new Date(el.created.time) : new Date(),
+  }))
+}

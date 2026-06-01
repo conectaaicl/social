@@ -16,11 +16,24 @@ export async function POST(req: NextRequest) {
 
   const now = new Date()
 
-  // SCHEDULED posts due now
+  // Get tenants with autopilot ON (autoPublish = true)
+  const activeTenants = await prisma.calendarConfig.findMany({
+    where: { autoPublish: true },
+    select: { tenantId: true },
+  })
+  const activeTenantIds = activeTenants.map(c => c.tenantId)
+
+  // If no tenants have autopilot on, nothing to publish
+  if (activeTenantIds.length === 0) {
+    return NextResponse.json({ ok: true, checked: 0, published: 0, failed: 0, paused: true })
+  }
+
+  // SCHEDULED posts due now — only for active autopilot tenants
   const scheduled = await prisma.post.findMany({
     where: {
       status: "SCHEDULED",
       scheduledAt: { lte: now },
+      tenantId: { in: activeTenantIds },
       tenant: { active: true },
     },
     select: { id: true, tenantId: true, scheduledAt: true },
@@ -28,12 +41,13 @@ export async function POST(req: NextRequest) {
     take: 20,
   })
 
-  // FAILED posts ready for retry (below attempt limit + nextAttemptAt passed)
+  // Retry FAILED posts only for active autopilot tenants
   const retryable = await prisma.post.findMany({
     where: {
       status: "FAILED",
       attempts: { lt: MAX_ATTEMPTS },
       nextAttemptAt: { lte: now },
+      tenantId: { in: activeTenantIds },
       tenant: { active: true },
     },
     select: { id: true, tenantId: true, scheduledAt: true },
@@ -49,7 +63,6 @@ export async function POST(req: NextRequest) {
       const res = await publishPost(post.id, post.tenantId)
       const data = await res.json()
       if (!data.success) {
-        // Increment attempt + set next retry with exponential backoff
         await prisma.post.updateMany({
           where: { id: post.id, status: "FAILED" },
           data: {
@@ -74,7 +87,6 @@ export async function POST(req: NextRequest) {
 }
 
 function computeNextAttempt(attemptNumber: number): Date {
-  // Exponential backoff: 5min, 15min, 45min, 2h, 6h
   const delays = [5, 15, 45, 120, 360]
   const minutes = delays[Math.min(attemptNumber, delays.length - 1)]
   return new Date(Date.now() + minutes * 60 * 1000)

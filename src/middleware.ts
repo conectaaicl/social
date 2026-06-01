@@ -5,7 +5,7 @@ export default auth((req) => {
   const { pathname } = req.nextUrl
   const isLoggedIn = !!req.auth
 
-  const publicPaths = ["/auth/login", "/auth/register", "/bio/", "/aprobar/"]
+  const publicPaths = ["/sitemap.xml", "/google39b4a51d86750223.html","/auth/login", "/auth/register", "/bio/", "/aprobar/"]
   const isPublic = publicPaths.some((p) => pathname.startsWith(p))
 
   if (!isLoggedIn && !isPublic) {

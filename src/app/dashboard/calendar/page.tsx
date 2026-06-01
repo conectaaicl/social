@@ -41,7 +41,7 @@ const OBJ_COLOR: Record<string, string> = {
 const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
 
 export default function CalendarPage() {
-  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [currentMonth, setCurrentMonth] = useState<Date | null>(null)
   const [slots, setSlots] = useState<CalendarSlot[]>([])
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,10 +50,14 @@ export default function CalendarPage() {
   const [selectedSlot, setSelectedSlot] = useState<CalendarSlot | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
 
-  const year = currentMonth.getFullYear()
-  const month = currentMonth.getMonth() + 1
+  // defer date init to client — prevents SSR/hydration mismatch
+  useEffect(() => { setCurrentMonth(new Date()) }, [])
+
+  const year = currentMonth?.getFullYear() ?? 0
+  const month = currentMonth != null ? currentMonth.getMonth() + 1 : 0
 
   const fetchData = useCallback(async () => {
+    if (!currentMonth) return
     setLoading(true)
     try {
       const [slotsRes, postsRes] = await Promise.all([
@@ -67,7 +71,7 @@ export default function CalendarPage() {
     } finally {
       setLoading(false)
     }
-  }, [year, month])
+  }, [year, month, currentMonth])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -108,6 +112,12 @@ export default function CalendarPage() {
     }
   }
 
+  if (!currentMonth) return (
+    <div className="flex items-center justify-center h-screen bg-gray-950">
+      <Loader2 size={20} className="animate-spin text-indigo-400" />
+    </div>
+  )
+
   const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) })
   const startDow = startOfMonth(currentMonth).getDay()
 
@@ -134,13 +144,13 @@ export default function CalendarPage() {
             <p className="text-xs text-gray-500 mt-0.5">{slots.length} slots planificados</p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => setCurrentMonth(m => subMonths(m, 1))} className="p-2 rounded-lg border border-gray-700 text-gray-400 hover:text-white transition">
+            <button onClick={() => setCurrentMonth(m => subMonths(m!, 1))} className="p-2 rounded-lg border border-gray-700 text-gray-400 hover:text-white transition">
               <ChevronLeft size={16} />
             </button>
             <span className="text-white font-semibold min-w-[140px] text-center text-sm">
               {MONTHS[month - 1]} {year}
             </span>
-            <button onClick={() => setCurrentMonth(m => addMonths(m, 1))} className="p-2 rounded-lg border border-gray-700 text-gray-400 hover:text-white transition">
+            <button onClick={() => setCurrentMonth(m => addMonths(m!, 1))} className="p-2 rounded-lg border border-gray-700 text-gray-400 hover:text-white transition">
               <ChevronRight size={16} />
             </button>
             <button onClick={generateCalendar} disabled={generating}

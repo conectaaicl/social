@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const error = searchParams.get("error")
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!
 
-  if (error) return NextResponse.redirect(appUrl + "/dashboard/accounts?error=cancelled")
+  if (error) return NextResponse.redirect(appUrl + "/dashboard/accounts?error=" + encodeURIComponent(error + ":" + (searchParams.get("error_description") ?? "")))
   if (!code || !stateRaw) return NextResponse.redirect(appUrl + "/dashboard/accounts?error=invalid_callback")
 
   let tenantId: string

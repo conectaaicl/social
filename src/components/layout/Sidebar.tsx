@@ -4,12 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
-import { LogOut, Menu, X } from "lucide-react"
-
-// ── Icons ─────────────────────────────────────────────────────────────────────
-function Ico({ d, fill, stroke, viewBox = "0 0 24 24", size = 15 }: { d?: string; fill?: string; stroke?: string; viewBox?: string; size?: number; children?: React.ReactNode }) {
-  return null // placeholder, using inline SVGs below
-}
+import { LogOut } from "lucide-react"
 
 function IcoDashboard({ s = 15 }: { s?: number }) {
   return <svg width={s} height={s} viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" fill="#6366f1"/><rect x="13" y="3" width="8" height="8" rx="2" fill="#8b5cf6"/><rect x="3" y="13" width="8" height="8" rx="2" fill="#a78bfa"/><rect x="13" y="13" width="8" height="8" rx="2" fill="#c4b5fd"/></svg>
@@ -93,103 +88,66 @@ function IcoAdmin({ s = 15 }: { s?: number }) {
   return <svg width={s} height={s} viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="#f59e0b" stroke="#d97706" strokeWidth="1" strokeLinejoin="round"/></svg>
 }
 
-// ── Nav groups ────────────────────────────────────────────────────────────────
 type NavItem = { href: string; label: string; Icon: React.FC<{ s?: number }>; badge?: "ia" | "live" | "new" }
 type NavGroup = { label: string; items: NavItem[] }
 
 const GROUPS: NavGroup[] = [
-  {
-    label: "Overview",
-    items: [
-      { href: "/dashboard", label: "Dashboard", Icon: IcoDashboard },
-      { href: "/dashboard/stats", label: "Estadísticas", Icon: IcoStats },
-    ]
-  },
-  {
-    label: "Contenido",
-    items: [
-      { href: "/dashboard/calendar", label: "Calendario", Icon: IcoCalendar },
-      { href: "/dashboard/posts", label: "Posts", Icon: IcoPosts },
-      { href: "/dashboard/aprobaciones", label: "Aprobaciones", Icon: IcoApproval },
-      { href: "/dashboard/monitor", label: "Monitor Posts", Icon: IcoMonitor, badge: "live" },
-      { href: "/dashboard/bulk", label: "Bulk Scheduler", Icon: IcoBulk },
-    ]
-  },
-  {
-    label: "Analítica",
-    items: [
-      { href: "/dashboard/analytics", label: "Analytics", Icon: IcoAnalytics },
-      { href: "/dashboard/analytics/hours", label: "Horario Óptimo", Icon: IcoHours },
-      { href: "/dashboard/insights", label: "Insights IA", Icon: IcoInsights, badge: "ia" },
-    ]
-  },
-  {
-    label: "Comunidad",
-    items: [
-      { href: "/dashboard/comments", label: "Comentarios", Icon: IcoComments },
-      { href: "/dashboard/inbox", label: "Inbox Unificado", Icon: IcoInbox },
-      { href: "/dashboard/leads", label: "CRM WhatsApp", Icon: IcoLeads },
-    ]
-  },
-  {
-    label: "Crecimiento",
-    items: [
-      { href: "/dashboard/radar", label: "Radar Competencia", Icon: IcoRadar, badge: "ia" },
-      { href: "/dashboard/radar/recreations", label: "Mis Recreaciones", Icon: IcoRadar },
-      { href: "/dashboard/hashtags", label: "Hashtag Monitor", Icon: IcoRadar },
-      { href: "/dashboard/abtests", label: "A/B Tests", Icon: IcoABTest },
-      { href: "/dashboard/videos", label: "Video IA", Icon: IcoVideo, badge: "ia" },
-    ]
-  },
-  {
-    label: "Marca & Cuentas",
-    items: [
-      { href: "/dashboard/brand", label: "Mi Marca", Icon: IcoBrand },
-      { href: "/dashboard/accounts", label: "Cuentas", Icon: IcoAccounts },
-      { href: "/dashboard/media", label: "Media Library", Icon: IcoMedia },
-      { href: "/dashboard/linkinbio", label: "Link in Bio", Icon: IcoLink },
-    ]
-  },
-  {
-    label: "IA & Automatización",
-    items: [
-      { href: "/dashboard/autopilot", label: "Piloto Automático", Icon: IcoPilot, badge: "ia" },
-      { href: "/dashboard/affiliates", label: "Afiliados", Icon: IcoAffiliates },
-    ]
-  },
-  {
-    label: "Negocio",
-    items: [
-      { href: "/dashboard/ads", label: "Google Ads", Icon: IcoAds },
-      { href: "/dashboard/agency", label: "Agencia", Icon: IcoAgency },
-      { href: "/dashboard/billing", label: "Plan & Billing", Icon: IcoBilling },
-    ]
-  },
-  {
-    label: "Sistema",
-    items: [
-      { href: "/dashboard/settings", label: "Configuración", Icon: IcoSettings },
-    ]
-  }
+  { label: "Overview", items: [
+    { href: "/dashboard", label: "Dashboard", Icon: IcoDashboard },
+    { href: "/dashboard/stats", label: "Estadísticas", Icon: IcoStats },
+  ]},
+  { label: "Contenido", items: [
+    { href: "/dashboard/calendar", label: "Calendario", Icon: IcoCalendar },
+    { href: "/dashboard/posts", label: "Posts", Icon: IcoPosts },
+    { href: "/dashboard/aprobaciones", label: "Aprobaciones", Icon: IcoApproval },
+    { href: "/dashboard/monitor", label: "Monitor Posts", Icon: IcoMonitor, badge: "live" },
+    { href: "/dashboard/bulk", label: "Bulk Scheduler", Icon: IcoBulk },
+  ]},
+  { label: "Analítica", items: [
+    { href: "/dashboard/analytics", label: "Analytics", Icon: IcoAnalytics },
+    { href: "/dashboard/analytics/hours", label: "Horario Óptimo", Icon: IcoHours },
+    { href: "/dashboard/insights", label: "Insights IA", Icon: IcoInsights, badge: "ia" },
+  ]},
+  { label: "Comunidad", items: [
+    { href: "/dashboard/comments", label: "Comentarios", Icon: IcoComments },
+    { href: "/dashboard/inbox", label: "Inbox Unificado", Icon: IcoInbox },
+    { href: "/dashboard/leads", label: "CRM WhatsApp", Icon: IcoLeads },
+  ]},
+  { label: "Crecimiento", items: [
+    { href: "/dashboard/radar", label: "Radar Competencia", Icon: IcoRadar, badge: "ia" },
+    { href: "/dashboard/radar/recreations", label: "Mis Recreaciones", Icon: IcoRadar },
+    { href: "/dashboard/hashtags", label: "Hashtag Monitor", Icon: IcoRadar },
+    { href: "/dashboard/abtests", label: "A/B Tests", Icon: IcoABTest },
+    { href: "/dashboard/videos", label: "Video IA", Icon: IcoVideo, badge: "ia" },
+  ]},
+  { label: "Marca & Cuentas", items: [
+    { href: "/dashboard/brand", label: "Mi Marca", Icon: IcoBrand },
+    { href: "/dashboard/accounts", label: "Cuentas", Icon: IcoAccounts },
+    { href: "/dashboard/media", label: "Media Library", Icon: IcoMedia },
+    { href: "/dashboard/linkinbio", label: "Link in Bio", Icon: IcoLink },
+  ]},
+  { label: "IA & Automatización", items: [
+    { href: "/dashboard/autopilot", label: "Piloto Automático", Icon: IcoPilot, badge: "ia" },
+    { href: "/dashboard/affiliates", label: "Afiliados", Icon: IcoAffiliates },
+  ]},
+  { label: "Negocio", items: [
+    { href: "/dashboard/ads", label: "Google Ads", Icon: IcoAds },
+    { href: "/dashboard/agency", label: "Agencia", Icon: IcoAgency },
+    { href: "/dashboard/billing", label: "Plan & Billing", Icon: IcoBilling },
+  ]},
+  { label: "Sistema", items: [
+    { href: "/dashboard/settings", label: "Configuración", Icon: IcoSettings },
+  ]},
 ]
 
 const ADMIN_ITEM: NavItem = { href: "/dashboard/admin", label: "Superadmin", Icon: IcoAdmin }
 
-const MOBILE_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Inicio", Icon: IcoDashboard },
-  { href: "/dashboard/posts", label: "Posts", Icon: IcoPosts },
-  { href: "/dashboard/calendar", label: "Calendario", Icon: IcoCalendar },
-  { href: "/dashboard/monitor", label: "Monitor", Icon: IcoMonitor },
-  { href: "/dashboard/analytics", label: "Analytics", Icon: IcoAnalytics },
-]
-
-// ── Badge component ───────────────────────────────────────────────────────────
 function Badge({ type }: { type: "ia" | "live" | "new" }) {
   if (type === "ia") return (
     <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "rgba(167,139,250,0.15)", color: "#c4b5fd", border: "1px solid rgba(167,139,250,0.2)", fontWeight: 700, letterSpacing: "0.04em", lineHeight: 1.4 }}>IA</span>
   )
   if (type === "live") return (
-    <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)", fontWeight: 700, letterSpacing: "0.04em", lineHeight: 1.4, display: "flex", alignItems: "center", gap: 3 }}>
+    <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)", fontWeight: 700, letterSpacing: "0.04em", lineHeight: 1.4, display: "inline-flex", alignItems: "center", gap: 3 }}>
       <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 4px #22c55e", display: "inline-block" }} />
       LIVE
     </span>
@@ -199,7 +157,6 @@ function Badge({ type }: { type: "ia" | "live" | "new" }) {
   )
 }
 
-// ── Props ─────────────────────────────────────────────────────────────────────
 interface SidebarProps {
   user: { name?: string | null; email?: string | null; role?: string | null }
   tenantName?: string
@@ -208,35 +165,20 @@ interface SidebarProps {
 
 export default function Sidebar({ user, tenantName, tenantLogo }: SidebarProps) {
   const pathname = usePathname()
-  const [open, setOpen] = useState(false)
-
-  useEffect(() => { setOpen(false) }, [pathname])
-  useEffect(() => {
-    if (!open) return
-    const h = (e: MouseEvent) => {
-      const el = document.getElementById("mob-sidebar")
-      if (el && !el.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
-  }, [open])
-
   const groups = [...GROUPS, ...(user.role === "SUPERADMIN" ? [{ label: "", items: [ADMIN_ITEM] }] : [])]
 
   function NavLink({ item }: { item: NavItem }) {
     const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
     return (
       <Link href={item.href} style={{
-        display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8,
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "7px 10px", borderRadius: 8,
         fontSize: 13, textDecoration: "none", transition: "all 0.15s",
         color: active ? "#c4b5fd" : "#64748b",
         background: active ? "rgba(124,58,237,0.1)" : "transparent",
         borderLeft: active ? "2px solid rgba(124,58,237,0.6)" : "2px solid transparent",
-        marginLeft: active ? 0 : 0,
         fontWeight: active ? 500 : 400,
-      }}
-        className={active ? "" : "sidebar-link-hover"}
-      >
+      }} className={active ? "" : "sidebar-link-hover"}>
         <item.Icon s={14} />
         <span style={{ flex: 1, lineHeight: 1 }}>{item.label}</span>
         {item.badge && <Badge type={item.badge} />}
@@ -244,11 +186,16 @@ export default function Sidebar({ user, tenantName, tenantLogo }: SidebarProps) 
     )
   }
 
-  const SidebarContent = () => (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* ── Logo header ── */}
-      <div style={{ padding: "18px 16px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+  return (
+    <>
+      <style>{`
+        .sidebar-link-hover:hover { background: rgba(255,255,255,0.04) !important; color: #94a3b8 !important; }
+        .sidebar-logout-btn:hover { background: rgba(239,68,68,0.08) !important; color: #f87171 !important; }
+      `}</style>
+
+      <aside style={{ width: 220, background: "#070b12", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", height: "100%", flexShrink: 0 }}>
+        {/* Logo */}
+        <div style={{ padding: "18px 16px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: 10 }}>
           {tenantLogo ? (
             <img src={tenantLogo} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: "contain", background: "white" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
           ) : (
@@ -261,94 +208,36 @@ export default function Sidebar({ user, tenantName, tenantLogo }: SidebarProps) 
             <div style={{ fontSize: 10, background: "linear-gradient(90deg,#a78bfa,#60a5fa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontWeight: 700, letterSpacing: "0.06em" }}>SOCIAL IA</div>
           </div>
         </div>
-        <button onClick={() => setOpen(false)} style={{ display: "none" }} className="mob-close" aria-label="Cerrar">
-          <X size={18} color="#64748b" />
-        </button>
-      </div>
 
-      {/* ── Nav ── */}
-      <nav style={{ flex: 1, padding: "8px 8px", overflowY: "auto", overflowX: "hidden" }}>
-        {groups.map((group, gi) => (
-          <div key={gi} style={{ marginBottom: 4 }}>
-            {group.label && (
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#334155", letterSpacing: "0.1em", textTransform: "uppercase", padding: "10px 10px 4px" }}>{group.label}</div>
-            )}
-            {group.items.map(item => <NavLink key={item.href} item={item} />)}
-          </div>
-        ))}
-      </nav>
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: "8px", overflowY: "auto", overflowX: "hidden" }}>
+          {groups.map((group, gi) => (
+            <div key={gi} style={{ marginBottom: 4 }}>
+              {group.label && (
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#334155", letterSpacing: "0.1em", textTransform: "uppercase", padding: "10px 10px 4px" }}>{group.label}</div>
+              )}
+              {group.items.map(item => <NavLink key={item.href} item={item} />)}
+            </div>
+          ))}
+        </nav>
 
-      {/* ── User ── */}
-      <div style={{ padding: "10px 8px 12px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", marginBottom: 4 }}>
-          <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#7c3aed,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "white", flexShrink: 0 }}>
-            {user.name?.[0]?.toUpperCase() ?? "U"}
+        {/* User */}
+        <div style={{ padding: "10px 8px 12px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", marginBottom: 4 }}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#7c3aed,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "white", flexShrink: 0 }}>
+              {user.name?.[0]?.toUpperCase() ?? "U"}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</div>
+              <div style={{ fontSize: 10, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</div>
+            </div>
           </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</div>
-            <div style={{ fontSize: 10, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</div>
-          </div>
+          <button onClick={() => signOut({ callbackUrl: "/auth/login" })} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, fontSize: 12, color: "#475569", background: "transparent", border: "none", cursor: "pointer", width: "100%", transition: "all 0.15s" }} className="sidebar-logout-btn">
+            <LogOut size={13} />
+            Cerrar sesión
+          </button>
         </div>
-        <button onClick={() => signOut({ callbackUrl: "/auth/login" })} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, fontSize: 12, color: "#475569", background: "transparent", border: "none", cursor: "pointer", width: "100%", transition: "all 0.15s" }} className="sidebar-logout-btn">
-          <LogOut size={13} />
-          Cerrar sesión
-        </button>
-      </div>
-    </div>
-  )
-
-  return (
-    <>
-      <style>{`
-        .sidebar-link-hover:hover { background: rgba(255,255,255,0.04) !important; color: #94a3b8 !important; }
-        .sidebar-logout-btn:hover { background: rgba(239,68,68,0.08) !important; color: #f87171 !important; }
-        @media (max-width: 767px) { .mob-close { display: flex !important; } }
-      `}</style>
-
-      {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex" style={{ width: 220, background: "#070b12", borderRight: "1px solid rgba(255,255,255,0.05)", flexDirection: "column", height: "100%", flexShrink: 0 }}>
-        <SidebarContent />
       </aside>
-
-      {/* ── Mobile: top bar ── */}
-      <div className="md:hidden" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 40, background: "#070b12", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 7, background: "linear-gradient(135deg,#7c3aed,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width={14} height={14} viewBox="0 0 24 24" fill="none"><path d="M13 3L4 14h8l-1 7 9-11h-8z" fill="white"/></svg>
-          </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>{tenantName ?? "ConectaAI"}</span>
-        </div>
-        <button onClick={() => setOpen(true)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <Menu size={20} color="#64748b" />
-        </button>
-      </div>
-
-      {/* ── Mobile: slide sidebar ── */}
-      {open && (
-        <div className="md:hidden" style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex" }}>
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }} onClick={() => setOpen(false)} />
-          <aside id="mob-sidebar" style={{ position: "relative", zIndex: 10, width: 240, background: "#070b12", height: "100%" }}>
-            <SidebarContent />
-          </aside>
-        </div>
-      )}
-
-      {/* ── Mobile: bottom nav ── */}
-      <nav className="md:hidden" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40, background: "#070b12", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-around", padding: "6px 8px", paddingBottom: "max(6px,env(safe-area-inset-bottom))" }}>
-        {MOBILE_NAV.map(item => {
-          const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
-          return (
-            <Link key={item.href} href={item.href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "6px 10px", borderRadius: 8, textDecoration: "none", color: active ? "#a78bfa" : "#475569", transition: "color 0.15s" }}>
-              <item.Icon s={20} />
-              <span style={{ fontSize: 9, fontWeight: 500 }}>{item.label}</span>
-            </Link>
-          )
-        })}
-        <button onClick={() => setOpen(true)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "6px 10px", borderRadius: 8, background: "none", border: "none", cursor: "pointer", color: "#475569" }}>
-          <Menu size={20} />
-          <span style={{ fontSize: 9, fontWeight: 500 }}>Más</span>
-        </button>
-      </nav>
     </>
   )
 }

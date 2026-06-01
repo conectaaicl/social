@@ -87,7 +87,7 @@ export default async function DashboardPage() {
   const hasAccounts = d.socialAccounts.length > 0
   const hasActivity = d.published > 0 || d.scheduled > 0
 
-  const hour = new Date().getHours()
+  const hour = parseInt(new Date().toLocaleString("en", { timeZone: "America/Santiago", hour: "numeric", hour12: false }))
   const greeting = hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches"
 
   return (
@@ -97,7 +97,7 @@ export default async function DashboardPage() {
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
           <div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, marginBottom: 4 }}>
+            <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, marginBottom: 4, lineHeight: 1.3 }}>
               {greeting},{" "}
               <span style={{ background: "linear-gradient(90deg,#a78bfa,#60a5fa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{name}</span>
             </h1>
