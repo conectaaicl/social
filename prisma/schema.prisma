@@ -86,6 +86,7 @@ model Tenant {
   brandVoice      BrandVoice?
   posts           Post[]
   mediaLibrary    MediaItem[]
+  mediaCategories MediaCategory[]
   calendar        CalendarConfig?
   postComments    PostComment[]
   adCampaigns     AdCampaign[]
@@ -106,6 +107,47 @@ model Tenant {
   groqApiKey      String?
   aiProvider      String? @default("anthropic")
   apifyToken      String?
+  flowApiKey      String?
+  flowSecretKey   String?
+
+  // Image/video generation APIs
+  falApiKey           String?
+  replicateApiToken   String?
+  stabilityApiKey     String?
+
+  // Meta integration
+  metaAppId           String?
+  metaAppSecret       String?
+
+  // WhatsApp integration
+  whatsappPhone       String?
+  whatsappInstance    String?
+  whatsappApiUrl      String?
+  whatsappApiKey      String?
+
+  // Google Ads integration
+  googleAdsClientId       String?
+  googleAdsClientSecret   String?
+  googleAdsRefreshToken   String?
+  googleAdsDeveloperToken String?
+  googleAdsCustomerId     String?
+
+  // Other integrations
+  ayrshareApiKey          String?
+  pinterestAppId          String?
+  pinterestAppSecret      String?
+  googleBusinessClientId  String?
+  googleBusinessClientSecret String?
+
+  // Cloudflare R2 storage
+  cloudflareAccountId     String?
+  cloudflareR2AccessKey   String?
+  cloudflareR2SecretKey   String?
+  cloudflareR2Bucket      String?
+
+  // Agency / misc
+  notes   String?
+  domain  String?
 
   @@map("tenants")
 }
@@ -255,12 +297,30 @@ model MediaItem {
   height      Int?
   duration    Int?        // segundos, para videos
   tags        String[]
+  categoryId  String?
   createdAt   DateTime    @default(now())
 
-  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
   tenantId    String
+  category    MediaCategory? @relation(fields: [categoryId], references: [id])
 
   @@map("media_items")
+}
+
+model MediaCategory {
+  id        String      @id
+  tenantId  String
+  name      String
+  slug      String
+  color     String      @default("#6366f1")
+  icon      String      @default("📁")
+  createdAt DateTime    @default(now())
+
+  tenant    Tenant      @relation(fields: [tenantId], references: [id])
+  mediaItems MediaItem[]
+
+  @@unique([tenantId, slug])
+  @@map("media_categories")
 }
 
 // ─── Google Ads Campaigns ───────────────────────────────
