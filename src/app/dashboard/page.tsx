@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import AutopilotBanner from "@/components/dashboard/AutopilotBanner"
+import DashboardHeader from "@/components/dashboard/DashboardHeader"
+import NextPostCard from "@/components/dashboard/NextPostCard"
 
 async function getDashboardData(tenantId: string) {
   const now = new Date()
@@ -87,36 +89,10 @@ export default async function DashboardPage() {
   const hasAccounts = d.socialAccounts.length > 0
   const hasActivity = d.published > 0 || d.scheduled > 0
 
-  const hour = parseInt(new Date().toLocaleString("en", { timeZone: "America/Santiago", hour: "numeric", hour12: false }))
-  const greeting = hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches"
-
   return (
     <div style={{ padding: "28px 32px", minHeight: "100vh", background: C.bg, color: C.text }}>
 
-      {/* ── Header ── */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
-          <div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, marginBottom: 4, lineHeight: 1.3 }}>
-              {greeting},{" "}
-              <span style={{ background: "linear-gradient(90deg,#a78bfa,#60a5fa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{name}</span>
-            </h1>
-            <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>
-              {new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })}
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link href="/dashboard/monitor" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.25)", color: C.violetLt }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.green, boxShadow: `0 0 8px ${C.green}`, display: "inline-block" }} />
-              Monitor en vivo
-            </Link>
-            <Link href="/dashboard/posts" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "white", boxShadow: "0 4px 14px rgba(124,58,237,0.3)" }}>
-              <svg width={13} height={13} viewBox="0 0 24 24" fill="none"><path d="M13 3L4 14h8l-1 7 9-11h-8z" fill="white"/></svg>
-              Generar post
-            </Link>
-          </div>
-        </div>
-      </div>
+      <DashboardHeader name={name} />
 
       <AutopilotBanner />
 
@@ -258,18 +234,11 @@ export default async function DashboardPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Next post card */}
           {d.nextPost && (
-            <div style={{ background: "rgba(124,58,237,0.07)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 12, padding: "16px" }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.violetLt, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Próximo post</div>
-              <div style={{ fontSize: 12, color: C.text, marginBottom: 8, lineHeight: 1.5 }}>
-                {d.nextPost.caption.slice(0, 80)}{d.nextPost.caption.length > 80 ? "…" : ""}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontSize: 11, color: C.muted }}>{d.nextPost.platform.join(" · ")}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.violetLt, background: "rgba(124,58,237,0.15)", padding: "3px 8px", borderRadius: 6 }}>
-                  en {formatTime(new Date(d.nextPost.scheduledAt!))}
-                </div>
-              </div>
-            </div>
+            <NextPostCard
+              caption={d.nextPost.caption}
+              platform={d.nextPost.platform}
+              scheduledAt={d.nextPost.scheduledAt!.toISOString()}
+            />
           )}
 
           {/* Pending comments */}
