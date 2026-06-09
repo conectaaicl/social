@@ -1,31 +1,63 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { uploadBufferToR2 } from '@/lib/r2'
-import { randomUUID } from 'crypto'
-import path from 'path'
-
-const MAX_MB = 20
-const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4']
+import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { writeFile, mkdir } from "fs/promises"
+import { join } from "path"
+import { randomUUID } from "crypto"
 
 export async function POST(req: NextRequest) {
   const session = await auth()
-  if (!session?.user?.tenantId) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const tenantId = session.user.tenantId
+  if (!session?.user?.tenantId) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+  }
 
-  const formData = await req.formData()
-  const file = formData.get('file') as File | null
-  if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 })
+  try {
+    const formData = await req.formData()
+    const file = formData.get("file") as File | null
+    if (!file) {
+      return NextResponse.json({ error: "No se recibió archivo" }, { status: 400 })
+    }
 
-  if (!ALLOWED.includes(file.type))
-    return NextResponse.json({ error: 'Tipo no permitido' }, { status: 400 })
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json(
+        { error: "Solo se permiten imágenes JPG, PNG, WEBP o GIF" },
+        { status: 400 }
+      )
+    }
 
-  if (file.size > MAX_MB * 1024 * 1024)
-    return NextResponse.json({ error: 'Archivo muy grande (max ' + MAX_MB + 'MB)' }, { status: 400 })
+    if (file.size > 50 * 1024 * 1024) {
+      return NextResponse.json({ error: "El archivo supera el límite de 50MB" }, { status: 400 })
+    }
 
-  const ext  = path.extname(file.name) || (file.type === 'video/mp4' ? '.mp4' : '.jpg')
-  const key  = 'uploads/' + tenantId + '/' + randomUUID() + ext
-  const buf  = Buffer.from(await file.arrayBuffer())
+    const MIME_TO_EXT: Record<string, string> = {
+      "image/jpeg": "jpg", "image/jpg": "jpg",
+      "image/png": "png", "image/webp": "webp", "image/gif": "gif",
+    }
+    const ext = MIME_TO_EXT[file.type] ?? "jpg"
+    const filename = `${randomUUID()}.${ext}`
+    const uploadsDir = join(process.cwd(), "public", "uploads")
 
-  const url = await uploadBufferToR2(key, buf, file.type)
-  return NextResponse.json({ url })
+    await mkdir(uploadsDir, { recursive: true })
+    const bytes = await file.arrayBuffer()
+    await writeFile(join(uploadsDir, filename), Buffer.from(bytes))
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://social.conectaai.cl"
+    const absoluteUrl = `${appUrl}/uploads/${filename}`
+
+    await prisma.mediaItem.create({
+      data: {
+        url: absoluteUrl,
+        type: "IMAGE",
+        source: "UPLOADED",
+        tenantId: session.user.tenantId,
+        tags: ["uploaded"],
+      },
+    })
+
+    return NextResponse.json({ url: absoluteUrl })
+  } catch (error) {
+    console.error("Upload error:", error)
+    return NextResponse.json({ error: "Error al subir archivo" }, { status: 500 })
+  }
 }

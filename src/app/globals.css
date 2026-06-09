@@ -43,6 +43,70 @@
     background: #0f1623;
     border: 1px solid rgba(255,255,255,0.06);
   }
+  /* Premium glass card — OmniFlow style */
+  .card-glass {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 16px;
+    padding: 24px;
+    backdrop-filter: blur(8px);
+  }
+  .card-glass:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.045);
+    transition: all 0.2s ease;
+  }
+  /* Stat card with colored glow */
+  .stat-card {
+    background: linear-gradient(135deg, rgba(17, 24, 39, 0.9), rgba(31, 41, 55, 0.5));
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    padding: 20px;
+    transition: all 0.2s ease;
+  }
+  .stat-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  /* Gradient text utility */
+  .text-gradient {
+    background: linear-gradient(135deg, #818cf8, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .text-gradient-green {
+    background: linear-gradient(135deg, #34d399, #059669);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  /* Glow effects */
+  .glow-indigo {
+    box-shadow: 0 0 24px rgba(99, 102, 241, 0.2), 0 0 8px rgba(99, 102, 241, 0.1);
+  }
+  .glow-green {
+    box-shadow: 0 0 24px rgba(34, 197, 94, 0.15);
+  }
+  .glow-purple {
+    box-shadow: 0 0 24px rgba(168, 85, 247, 0.15);
+  }
+  /* Sidebar nav active item */
+  .nav-active {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.1));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: #a5b4fc;
+  }
+  .nav-active .nav-icon {
+    filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.6));
+  }
+  /* Chart container */
+  .chart-container {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    padding: 24px;
+  }
   .input {
     @apply rounded-lg px-4 py-2.5 text-slate-200 placeholder-slate-600 focus:outline-none w-full transition-all duration-200;
     background: #161d2e;

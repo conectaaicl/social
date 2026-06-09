@@ -1,4 +1,4 @@
-const META_V = "v21.0"
+const META_V = "v19.0"
 const META_BASE = `https://graph.facebook.com/${META_V}`
 
 export interface MetaPage {
@@ -8,31 +8,11 @@ export interface MetaPage {
   instagram_business_account?: { id: string }
 }
 
-// Retryable error codes from Meta API
-const RETRYABLE_META_CODES = new Set([1, 2, 4, 17, 32, 613, 500, 503])
-const THROTTLE_CODES = new Set([4, 17, 32, 613])
-
-async function metaFetch(url: string, options?: RequestInit, retries = 3): Promise<any> {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    const res = await fetch(url, options)
-    const data = await res.json()
-    if (!data.error) return data
-
-    const code = data.error.code as number
-    const isRetryable = RETRYABLE_META_CODES.has(code) || res.status >= 500
-    const isThrottle = THROTTLE_CODES.has(code)
-
-    if (isRetryable && attempt < retries) {
-      const delay = isThrottle
-        ? 60_000
-        : Math.min(2 ** attempt * 1000, 30_000)
-      console.warn("Meta API code " + code + " (attempt " + attempt + "/" + retries + "), retrying in " + delay + "ms")
-      await new Promise((r) => setTimeout(r, delay))
-      continue
-    }
-
-    throw new Error("Meta API: " + data.error.message + " (code " + code + ")")
-  }
+async function metaFetch(url: string, options?: RequestInit) {
+  const res = await fetch(url, options)
+  const data = await res.json()
+  if (data.error) throw new Error(`Meta API: ${data.error.message} (code ${data.error.code})`)
+  return data
 }
 
 export async function exchangeForLongLivedToken(shortToken: string): Promise<string> {
@@ -135,47 +115,33 @@ export async function publishInstagramReel(
   return publishIGContainer(igUserId, containerId, userToken)
 }
 
-
-// ── Instagram Carousel (multi-image post) ────────────────────────────────────
 export async function publishInstagramCarousel(
   igUserId: string,
-  accessToken: string,
-  mediaUrls: string[],
+  userToken: string,
+  imageUrls: string[],
   caption: string
 ): Promise<string> {
-  const base = "https://graph.facebook.com/v21.0"
-
-  // 1. Create child containers (one per image, no caption)
+  // Step 1: Create a container for each image
   const childIds: string[] = []
-  for (const url of mediaUrls.slice(0, 10)) {  // Max 10 slides
-    const r = await fetch(`${base}/${igUserId}/media`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image_url: url, is_carousel_item: true, access_token: accessToken }),
+  for (const imageUrl of imageUrls) {
+    const childId = await createIGContainer(igUserId, userToken, {
+      image_url: imageUrl,
+      is_carousel_item: "true",
     })
-    const d = await r.json()
-    if (d.error) throw new Error(`Carousel child error: ${d.error.message}`)
-    childIds.push(d.id)
+    await waitForIGContainer(childId, userToken)
+    childIds.push(childId)
   }
 
-  // 2. Create carousel container
-  const carouselR = await fetch(`${base}/${igUserId}/media`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ media_type: "CAROUSEL", caption, children: childIds.join(","), access_token: accessToken }),
+  // Step 2: Create the carousel container with all child IDs
+  const carouselId = await createIGContainer(igUserId, userToken, {
+    media_type: "CAROUSEL",
+    children: childIds.join(","),
+    caption,
   })
-  const carouselD = await carouselR.json()
-  if (carouselD.error) throw new Error(`Carousel container error: ${carouselD.error.message}`)
+  await waitForIGContainer(carouselId, userToken)
 
-  // 3. Publish
-  const pubR = await fetch(`${base}/${igUserId}/media_publish`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ creation_id: carouselD.id, access_token: accessToken }),
-  })
-  const pubD = await pubR.json()
-  if (pubD.error) throw new Error(`Carousel publish error: ${pubD.error.message}`)
-  return pubD.id
+  // Step 3: Publish the carousel container
+  return publishIGContainer(igUserId, carouselId, userToken)
 }
 
 export async function publishFacebookPost(

@@ -1,13 +1,10 @@
-import { rateLimit } from "@/lib/rate-limit"
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { generatePostContent, type AIConfig } from "@/lib/claude"
-import { buildTenantAIConfig } from "@/lib/ai-config"
-import { generateImage, type ImageCreativeStyle } from "@/lib/fal"
+import { generatePostContent } from "@/lib/claude"
+import { generateImage } from "@/lib/fal"
 import { animateImageToVideo } from "@/lib/replicate"
-import { applyBrandOverlayAndUpload } from "@/lib/brand-overlay"
-import { sendApprovalRequest } from "@/lib/approval-pipeline"
+import { persistExternalImage } from "@/lib/persist-image"
 import { z } from "zod"
 
 const generateSchema = z.object({
@@ -17,14 +14,9 @@ const generateSchema = z.object({
   scheduledAt: z.string().datetime(),
   customCaption: z.string().optional(),
   customHashtags: z.string().optional(),
-  libraryImageUrl: z.string().url().optional(),
-  imageStyle: z.enum(["catalogo", "ugc", "emocional", "comparativo"]).optional(),
 })
 
 export async function POST(req: NextRequest) {
-  const limited = rateLimit(req, { limit: 20, windowMs: 60 * 60 * 1000, keyPrefix: "generate" })
-  if (limited) return limited
-
   const session = await auth()
   if (!session?.user?.tenantId) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
@@ -34,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { postType, contentType, platforms, scheduledAt, customCaption, customHashtags, libraryImageUrl, imageStyle } = parsed.data
+  const { postType, contentType, platforms, scheduledAt, customCaption, customHashtags } = parsed.data
 
   const brandVoice = await prisma.brandVoice.findUnique({
     where: { tenantId: session.user.tenantId },
@@ -46,14 +38,6 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     )
   }
-
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: session.user.tenantId },
-    select: { name: true, aiProvider: true, openaiApiKey: true, anthropicApiKey: true, groqApiKey: true },
-  })
-
-  // Build per-tenant AI config
-  const aiConfig = buildTenantAIConfig(tenant)
 
   const socialAccount = await prisma.socialAccount.findFirst({
     where: { tenantId: session.user.tenantId, platform: platforms[0], active: true },
@@ -92,53 +76,20 @@ export async function POST(req: NextRequest) {
       postType,
       contentType,
       platforms,
-      aiConfig,
     })
 
-    let rawImageUrl: string
-    let brandedImageUrl: string
+    const rawImageUrl = await generateImage(content.imagePrompt, postType)
+    // Persist fal.ai image locally so the URL never expires before publishing
+    const imageUrl = await persistExternalImage(rawImageUrl)
 
-    if (libraryImageUrl) {
-      // Use library image directly — still apply brand overlay
-      rawImageUrl = libraryImageUrl
-      try {
-        brandedImageUrl = await applyBrandOverlayAndUpload({
-          imageUrl: rawImageUrl,
-          brandName: tenant?.name ?? brandVoice.industry,
-          brandColors: brandVoice.brandColors?.length ? brandVoice.brandColors : ["#1a1a2e"],
-          postType,
-        })
-      } catch {
-        brandedImageUrl = rawImageUrl
-      }
-    } else {
-      // Build negative prompt: exclude common misidentification objects
-      const negativePrompt = [
-        'sofa', 'armchair', 'couch', 'furniture', 'chair', 'table', 'bed', 'lamp',
-        'blurry', 'distorted', 'low quality', 'watermark', 'text', 'logo',
-        'cartoon', 'anime', 'illustration', 'drawing', 'painting',
-      ].join(', ')
-      rawImageUrl = await generateImage(content.imagePrompt, postType, (imageStyle ?? "catalogo") as ImageCreativeStyle, negativePrompt)
-      try {
-        brandedImageUrl = await applyBrandOverlayAndUpload({
-          imageUrl: rawImageUrl,
-          brandName: tenant?.name ?? brandVoice.industry,
-          brandColors: brandVoice.brandColors?.length ? brandVoice.brandColors : ["#1a1a2e"],
-          postType,
-        })
-      } catch {
-        brandedImageUrl = rawImageUrl
-      }
-    }
-
-    const mediaUrls: string[] = [brandedImageUrl]
+    const mediaUrls: string[] = [imageUrl]
     let thumbnailUrl: string | undefined
 
-    if (postType === "REEL" && process.env.REPLICATE_API_TOKEN && !libraryImageUrl) {
+    if (postType === "REEL" && process.env.REPLICATE_API_TOKEN) {
       try {
-        const videoUrl = await animateImageToVideo(rawImageUrl)
-        mediaUrls[0] = videoUrl
-        thumbnailUrl = brandedImageUrl
+        const rawVideoUrl = await animateImageToVideo(rawImageUrl)
+        mediaUrls[0] = await persistExternalImage(rawVideoUrl)
+        thumbnailUrl = imageUrl
       } catch (err) {
         console.error("Video generation failed, using image as fallback:", err)
       }
@@ -146,24 +97,21 @@ export async function POST(req: NextRequest) {
 
     await prisma.mediaItem.create({
       data: {
-        url: brandedImageUrl,
-        type: postType === "REEL" && mediaUrls[0] !== brandedImageUrl ? "VIDEO" : "IMAGE",
-        source: libraryImageUrl ? "UPLOADED" : "AI_GENERATED",
-        prompt: libraryImageUrl ? null : content.imagePrompt,
+        url: imageUrl,
+        type: postType === "REEL" && mediaUrls[0] !== imageUrl ? "VIDEO" : "IMAGE",
+        source: "AI_GENERATED",
+        prompt: content.imagePrompt,
         tenantId: session.user.tenantId,
         tags: [contentType.toLowerCase(), postType.toLowerCase()],
       },
     })
 
-    const finalCaption = customCaption ?? content.caption
-    const finalHashtags = customHashtags ?? content.hashtags
-
-    await prisma.post.update({
+    const updatedPost = await prisma.post.update({
       where: { id: postId },
       data: {
-        status: "PENDING_APPROVAL",
-        caption: finalCaption,
-        hashtags: finalHashtags,
+        status: "SCHEDULED",
+        caption: customCaption ?? content.caption,
+        hashtags: customHashtags ?? content.hashtags,
         imagePrompt: content.imagePrompt,
         videoPrompt: content.videoPrompt,
         mediaUrls,
@@ -171,31 +119,6 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    const approvalPhone = process.env.APPROVAL_WHATSAPP_PHONE ?? ""
-    if (approvalPhone) {
-      try {
-        await sendApprovalRequest(approvalPhone, {
-          postId: postId!,
-          tenantName: tenant?.name ?? "Social",
-          caption: finalCaption,
-          hashtags: finalHashtags,
-          postType,
-          contentType,
-          platforms,
-          scheduledAt: new Date(scheduledAt),
-          mediaUrl: brandedImageUrl,
-        })
-      } catch (waErr) {
-        console.error("WhatsApp approval send failed:", waErr)
-      }
-    } else {
-      await prisma.post.update({
-        where: { id: postId },
-        data: { status: "SCHEDULED" },
-      })
-    }
-
-    const updatedPost = await prisma.post.findUnique({ where: { id: postId! } })
     return NextResponse.json({ success: true, post: updatedPost })
   } catch (err: any) {
     console.error("Content generation error:", err)
