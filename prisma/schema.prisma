@@ -89,6 +89,23 @@ model Tenant {
   calendar        CalendarConfig?
   postComments    PostComment[]
   adCampaigns     AdCampaign[]
+  calendarSlots   CalendarSlot[]
+  competitors     Competitor[]
+  hashtagMonitors HashtagMonitor[]
+  socialLeads     SocialLead[]
+  affiliates      Affiliate[]
+  bioPage         BioPage?
+  aBTests         ABTest[]
+  winningPatterns WinningPattern[]
+  postApprovals   PostApproval[]
+  videoScripts    VideoScript[]
+
+  // AI provider keys (per-tenant overrides)
+  anthropicApiKey String?
+  openaiApiKey    String?
+  groqApiKey      String?
+  aiProvider      String? @default("anthropic")
+  apifyToken      String?
 
   @@map("tenants")
 }
@@ -198,6 +215,8 @@ model Post {
 
   postComments    PostComment[]
   adCampaigns     AdCampaign[]
+  calendarSlots   CalendarSlot[]
+  postApprovals   PostApproval[]
 
   @@map("posts")
 }
@@ -313,6 +332,7 @@ enum ContentType {
 
 enum PostStatus {
   PENDING
+  PENDING_APPROVAL
   GENERATING
   SCHEDULED
   PUBLISHING
@@ -338,6 +358,315 @@ enum AdStatus {
   PAUSED
   ENDED
   REJECTED
+}
+
+// ─── Calendar Slots ─────────────────────────────────────
+
+model CalendarSlot {
+  id            String    @id @default(cuid())
+  tenantId      String
+  year          Int
+  month         Int
+  scheduledDate DateTime
+  timeSlot      String
+  formato       String
+  objetivo      String
+  temaSugerido  String?
+  postId        String?
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  post          Post?     @relation(fields: [postId], references: [id])
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("calendar_slots")
+}
+
+// ─── Radar / Competitors ─────────────────────────────────
+
+model Competitor {
+  id             String    @id @default(cuid())
+  tenantId       String
+  name           String
+  handle         String
+  platform       String    @default("instagram")
+  tier           Int       @default(2)
+  notes          String?
+  active         Boolean   @default(true)
+  followersCount Int?
+
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  posts          CompetitorPost[]
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([tenantId, handle], name: "tenantId_handle")
+  @@map("competitors")
+}
+
+model CompetitorPost {
+  id             String    @id @default(cuid())
+  competitorId   String
+  mediaUrl       String?
+  caption        String?
+  postType       String?
+  likesCount     Int?
+  commentsCount  Int?
+  isViral        Boolean   @default(false)
+  engagementRate Float?
+  postedAt       DateTime?
+
+  competitor     Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime  @default(now())
+
+  @@map("competitor_posts")
+}
+
+// ─── Hashtag Monitor ────────────────────────────────────
+
+model HashtagMonitor {
+  id        String    @id @default(cuid())
+  tenantId  String
+  hashtag   String
+  lastScan  DateTime?
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  leads     HashtagLead[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([tenantId, hashtag])
+  @@map("hashtag_monitors")
+}
+
+model HashtagLead {
+  id          String   @id @default(cuid())
+  monitorId   String
+  tenantId    String
+  username    String
+  caption     String?
+  mediaUrl    String?
+  sentiment   String?
+  postUrl     String?
+  contacted   Boolean  @default(false)
+  contactedAt DateTime?
+
+  monitor     HashtagMonitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([monitorId, username])
+  @@map("hashtag_leads")
+}
+
+// ─── Winning Patterns (AI analytics) ────────────────────
+
+model WinningPattern {
+  id            String   @id @default(cuid())
+  tenantId      String
+  descripcion   String
+  avgEngagement Float    @default(0)
+  formato       String?
+  objetivo      String?
+  postCount     Int      @default(0)
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("winning_patterns")
+}
+
+// ─── A/B Tests ──────────────────────────────────────────
+
+model ABTest {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  hypothesis  String?
+  postARef    String
+  postBRef    String?
+  status      String   @default("draft")
+  winner      String?
+  notes       String?
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("ab_tests")
+}
+
+// ─── Post Approvals ─────────────────────────────────────
+
+model PostApproval {
+  id          String   @id @default(cuid())
+  tenantId    String
+  postId      String
+  token       String   @unique @default(cuid())
+  status      String   @default("pending")
+  requestedAt DateTime @default(now())
+  reviewedAt  DateTime?
+  reviewerNote String?
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("post_approvals")
+}
+
+// ─── Social Leads (CRM) ──────────────────────────────────
+
+model SocialLead {
+  id             String    @id @default(cuid())
+  tenantId       String
+  whatsappPhone  String
+  nombre         String?
+  email          String?
+  tags           String[]  @default([])
+  stage          String    @default("new")
+  closerName     String?
+  dealValue      Float?
+  fuentePostId   String?
+  leadScore      Int       @default(0)
+  lastActivity   DateTime?
+  notes          String?
+
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  activities     LeadActivity[]
+  leadNotes      LeadNote[]
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([tenantId, whatsappPhone])
+  @@map("social_leads")
+}
+
+model LeadActivity {
+  id        String   @id @default(cuid())
+  leadId    String
+  type      String
+  note      String?
+  createdAt DateTime @default(now())
+
+  lead      SocialLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@map("lead_activities")
+}
+
+model LeadNote {
+  id        String   @id @default(cuid())
+  leadId    String
+  text      String
+  createdAt DateTime @default(now())
+
+  lead      SocialLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@map("lead_notes")
+}
+
+// ─── Affiliates ──────────────────────────────────────────
+
+model Affiliate {
+  id         String   @id @default(cuid())
+  tenantId   String
+  code       String   @unique
+  name       String
+  email      String
+  phone      String?
+  type       String   @default("REFERRAL")
+  commission Float    @default(10)
+  notes      String?
+  active     Boolean  @default(true)
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  referrals  AffiliateReferral[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("affiliates")
+}
+
+model AffiliateReferral {
+  id          String   @id @default(cuid())
+  affiliateId String
+  amount      Float    @default(0)
+  commission  Float    @default(0)
+  status      String   @default("pending")
+  description String?
+
+  affiliate   Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@map("affiliate_referrals")
+}
+
+// ─── Bio Page (Link-in-bio) ──────────────────────────────
+
+model BioPage {
+  id          String   @id @default(cuid())
+  tenantId    String   @unique
+  title       String?
+  description String?
+  avatarUrl   String?
+  theme       String   @default("dark")
+  published   Boolean  @default(true)
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  links       BioLink[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("bio_pages")
+}
+
+model BioLink {
+  id         String   @id @default(cuid())
+  bioPageId  String
+  label      String
+  url        String
+  icon       String?
+  utmSource  String   @default("bio")
+  utmMedium  String   @default("social")
+  active     Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  clicks     Int      @default(0)
+
+  bioPage    BioPage  @relation(fields: [bioPageId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+
+  @@map("bio_links")
+}
+
+// ─── Video Scripts ───────────────────────────────────────
+
+model VideoScript {
+  id        String   @id @default(cuid())
+  tenantId  String
+  title     String?
+  hook      String?
+  script    String?
+  duration  Int?
+  style     String?
+  status    String   @default("draft")
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("video_scripts")
 }
 
 // ─── Meta Compliance ────────────────────────────────────
