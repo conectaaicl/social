@@ -14,7 +14,7 @@ async function getDashboardData(tenantId: string) {
     prisma.post.count({ where: { tenantId, status: "SCHEDULED" } }),
     prisma.post.count({ where: { tenantId, status: "FAILED" } }),
     prisma.post.count({ where: { tenantId, status: "GENERATING" } }),
-    prisma.post.count({ where: { tenantId, status: "PENDING_APPROVAL" } }),
+    prisma.post.count({ where: { tenantId, status: "PENDING" } }),
     prisma.post.findMany({
       where: { tenantId, status: "PUBLISHED", publishedAt: { gte: monthStart } },
       select: { reach: true, likes: true, comments: true },
@@ -48,12 +48,12 @@ async function getDashboardData(tenantId: string) {
 }
 
 const ST_COLOR: Record<string, string> = {
-  PUBLISHED: "#22c55e", SCHEDULED: "#a78bfa", PENDING_APPROVAL: "#f59e0b",
+  PUBLISHED: "#22c55e", SCHEDULED: "#a78bfa", PENDING: "#f59e0b",
   FAILED: "#ef4444", GENERATING: "#38bdf8", PUBLISHING: "#06b6d4",
 }
 const ST_LABEL: Record<string, string> = {
-  PUBLISHED: "Publicado", SCHEDULED: "Programado", PENDING_APPROVAL: "Aprobación",
-  FAILED: "Fallido", GENERATING: "Generando", PENDING: "Pendiente",
+  PUBLISHED: "Publicado", SCHEDULED: "Programado", PENDING: "Pendiente",
+  FAILED: "Fallido", GENERATING: "Generando", PUBLISHING: "Publicando",
 }
 const TYPE_LABEL: Record<string, string> = { FEED: "Feed", STORY: "Story", REEL: "Reel", CAROUSEL: "Carrusel" }
 
