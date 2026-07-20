@@ -423,3 +423,41 @@ export async function analyzeCompetitor(params: {
     return { strengths: [], opportunities: [], contentIdeas: [], summary: "Error al analizar." }
   }
 }
+
+// ─── Transcript mining: extrae insumos de contenido de una transcripcion larga ──
+export async function analyzeTranscript(params: {
+  transcript: string
+  brandVoice: { industry: string; products: string[] }
+  aiConfig?: AIConfig
+}): Promise<{
+  hooks: string[]
+  historias: string[]
+  frameworks: string[]
+  objeciones: string[]
+  citas: string[]
+}> {
+  const { transcript, brandVoice, aiConfig } = params
+  const trimmed = transcript.slice(0, 14000)
+
+  const text = await llmWithConfig(
+    aiConfig,
+    `Eres un estratega de contenido que extrae material reutilizable de transcripciones largas (videos de YouTube, podcasts, llamadas de venta) para un negocio de ${brandVoice.industry}. Respondes SOLO JSON valido, sin texto extra.`,
+    `Analiza esta transcripcion y extrae material aprovechable para crear contenido corto (reels, posts):\n\n"""${trimmed}"""\n\nExtrae:\n1. hooks: 3-5 ganchos/ideas cortas que funcionarian como apertura de un reel\n2. historias: 2-4 momentos narrativos o anecdotas reutilizables tal como aparecen\n3. frameworks: 2-3 metodos, pasos o estructuras mencionadas que se puedan convertir en contenido educativo\n4. objeciones: objeciones, dudas o resistencias del cliente/audiencia mencionadas en el texto, con una idea de como responderlas\n5. citas: 2-4 frases textuales potentes, tal como se dijeron, que sirvan como copy directo\n\nSi la transcripcion no trae suficiente material para alguna categoria, devuelve un arreglo mas corto o vacio para esa categoria en vez de inventar contenido.\n\nResponde SOLO este JSON:\n{\n  "hooks": ["..."],\n  "historias": ["..."],\n  "frameworks": ["..."],\n  "objeciones": ["..."],\n  "citas": ["..."]\n}`,
+    2000
+  )
+
+  try {
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error("no JSON")
+    const parsed = JSON.parse(match[0])
+    return {
+      hooks: Array.isArray(parsed.hooks) ? parsed.hooks : [],
+      historias: Array.isArray(parsed.historias) ? parsed.historias : [],
+      frameworks: Array.isArray(parsed.frameworks) ? parsed.frameworks : [],
+      objeciones: Array.isArray(parsed.objeciones) ? parsed.objeciones : [],
+      citas: Array.isArray(parsed.citas) ? parsed.citas : [],
+    }
+  } catch {
+    return { hooks: [], historias: [], frameworks: [], objeciones: [], citas: [] }
+  }
+}

@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Calendar, Image, Settings, LogOut,
   Instagram, Palette, BarChart3, Zap, FileImage,
   Lightbulb, MessageCircle, Crown, Megaphone, Menu, X,
-  Kanban,
+  Kanban, FileText,
 } from "lucide-react"
 import { clsx } from "clsx"
 
@@ -19,6 +19,7 @@ const navItems = [
   { href: "/dashboard/calendar",   label: "Calendario",    icon: Calendar },
   { href: "/dashboard/analytics",  label: "Analytics",     icon: BarChart3 },
   { href: "/dashboard/insights",   label: "Insights IA",   icon: Lightbulb },
+  { href: "/dashboard/transcripts",label: "Transcripciones", icon: FileText },
   { href: "/dashboard/comments",   label: "Comentarios",   icon: MessageCircle },
   { href: "/dashboard/media",      label: "Media",         icon: FileImage },
   { href: "/dashboard/accounts",   label: "Cuentas",       icon: Instagram },

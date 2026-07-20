@@ -6,8 +6,13 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const session = await auth()
   if (!session?.user?.tenantId) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
+  const affiliate = await prisma.affiliate.findFirst({
+    where: { id: params.id, tenantId: session.user.tenantId },
+  })
+  if (!affiliate) return NextResponse.json({ error: "Afiliado no encontrado" }, { status: 404 })
+
   const referrals = await prisma.affiliateReferral.findMany({
-    where: { affiliateId: params.id, tenantId: session.user.tenantId },
+    where: { affiliateId: params.id },
     orderBy: { createdAt: "desc" },
   })
 
@@ -32,7 +37,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const referral = await prisma.affiliateReferral.create({
     data: {
       affiliateId: params.id,
-      tenantId: session.user.tenantId,
       referredName: referredName || null,
       referredEmail: referredEmail || null,
       referredPhone: referredPhone || null,
@@ -53,6 +57,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const referralId = searchParams.get("referralId")
   if (!referralId) return NextResponse.json({ error: "referralId requerido" }, { status: 400 })
 
+  const affiliate = await prisma.affiliate.findFirst({ where: { id: params.id, tenantId: session.user.tenantId } })
+  if (!affiliate) return NextResponse.json({ error: "Afiliado no encontrado" }, { status: 404 })
+
   const body = await req.json()
   const { status, amount, notes } = body
 
@@ -62,9 +69,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (status === "PAID") updated.paidAt = new Date()
   }
   if (amount !== undefined) {
-    const affiliate = await prisma.affiliate.findFirst({ where: { id: params.id, tenantId: session.user.tenantId } })
     updated.amount = Number(amount)
-    updated.commission = (Number(amount) * (affiliate?.commission ?? 10)) / 100
+    updated.commission = (Number(amount) * affiliate.commission) / 100
   }
   if (notes !== undefined) updated.notes = notes
 

@@ -25,7 +25,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const parsed = PatchSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
-  const data: any = { ...parsed.data }
+  const { winnerId, ...rest } = parsed.data
+  const data: any = { ...rest }
+  if (winnerId !== undefined) data.winner = winnerId
   if (parsed.data.status === 'running' && !test.startedAt) data.startedAt = new Date()
   if (parsed.data.status === 'completed' && !test.endedAt) data.endedAt = new Date()
 

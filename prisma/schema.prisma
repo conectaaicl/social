@@ -98,6 +98,7 @@ model Tenant {
   bioPage         BioPage?
   aBTests         ABTest[]
   winningPatterns WinningPattern[]
+  transcriptInsights TranscriptInsight[]
   postApprovals   PostApproval[]
   videoScripts    VideoScript[]
 
@@ -145,9 +146,16 @@ model Tenant {
   cloudflareR2SecretKey   String?
   cloudflareR2Bucket      String?
 
+  // Billing (Flow)
+  subscriptionOrderId    String?
+  subscriptionExpiresAt  DateTime?
+
   // Agency / misc
-  notes   String?
-  domain  String?
+  notes     String?
+  domain    String?
+  agencyId  String?
+  agency    Tenant?  @relation("AgencyClients", fields: [agencyId], references: [id])
+  clients   Tenant[] @relation("AgencyClients")
 
   @@map("tenants")
 }
@@ -160,6 +168,8 @@ model SocialAccount {
   accountId         String
   accountName       String
   accessToken       String
+  refreshToken      String?
+  openId            String?
   tokenExpiresAt    DateTime?
   pageId            String?       // Facebook Page ID
   active            Boolean       @default(true)
@@ -240,6 +250,8 @@ model Post {
   publishedAt     DateTime?
   failedAt        DateTime?
   failReason      String?
+  attempts        Int         @default(0)
+  nextAttemptAt   DateTime?
 
   metaPostId      String?     // ID retornado por Meta al publicar
   reach           Int?
@@ -259,6 +271,8 @@ model Post {
   adCampaigns     AdCampaign[]
   calendarSlots   CalendarSlot[]
   postApprovals   PostApproval[]
+  approvalToken   String?
+  approvalSentAt  DateTime?
 
   @@map("posts")
 }
@@ -374,6 +388,12 @@ enum PlanType {
 enum Platform {
   INSTAGRAM
   FACEBOOK
+  YOUTUBE
+  TIKTOK
+  PINTEREST
+  LINKEDIN
+  THREADS
+  GOOGLE_BUSINESS
 }
 
 enum PostType {
@@ -455,6 +475,7 @@ model Competitor {
   notes          String?
   active         Boolean   @default(true)
   followersCount Int?
+  avatarUrl      String?
 
   tenant         Tenant    @relation(fields: [tenantId], references: [id])
   posts          CompetitorPost[]
@@ -467,21 +488,30 @@ model Competitor {
 }
 
 model CompetitorPost {
-  id             String    @id @default(cuid())
-  competitorId   String
-  mediaUrl       String?
-  caption        String?
-  postType       String?
-  likesCount     Int?
-  commentsCount  Int?
-  isViral        Boolean   @default(false)
-  engagementRate Float?
-  postedAt       DateTime?
+  id               String    @id @default(cuid())
+  competitorId     String
+  postId           String?
+  mediaUrl         String?
+  mediaType        String?
+  postUrl          String?
+  caption          String?
+  postType         String?
+  likesCount       Int?
+  commentsCount    Int?
+  viewsCount       Int?
+  isViral          Boolean   @default(false)
+  viralScore       Float?
+  engagementRate   Float?
+  recreated        Boolean   @default(false)
+  recreatedCaption String?
+  recreatedAt      DateTime?
+  postedAt         DateTime?
 
-  competitor     Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  competitor       Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
 
-  createdAt      DateTime  @default(now())
+  createdAt        DateTime  @default(now())
 
+  @@unique([competitorId, postId], name: "competitorId_postId")
   @@map("competitor_posts")
 }
 
@@ -490,8 +520,9 @@ model CompetitorPost {
 model HashtagMonitor {
   id        String    @id @default(cuid())
   tenantId  String
-  hashtag   String
-  lastScan  DateTime?
+  hashtag    String
+  lastScan   DateTime?
+  postsFound Int       @default(0)
 
   tenant    Tenant    @relation(fields: [tenantId], references: [id])
   leads     HashtagLead[]
@@ -504,22 +535,28 @@ model HashtagMonitor {
 }
 
 model HashtagLead {
-  id          String   @id @default(cuid())
-  monitorId   String
-  tenantId    String
-  username    String
-  caption     String?
-  mediaUrl    String?
-  sentiment   String?
-  postUrl     String?
-  contacted   Boolean  @default(false)
-  contactedAt DateTime?
+  id             String   @id @default(cuid())
+  monitorId      String
+  tenantId       String
+  postId         String?
+  username       String
+  caption        String?
+  mediaUrl       String?
+  followersCount Int?
+  bio            String?
+  likesCount     Int?
+  commentsCount  Int?
+  sentiment      String?
+  sentimentScore Float?
+  postUrl        String?
+  contacted      Boolean  @default(false)
+  contactedAt    DateTime?
 
-  monitor     HashtagMonitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  monitor        HashtagMonitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime @default(now())
+  scannedAt      DateTime @default(now())
 
-  @@unique([monitorId, username])
+  @@unique([monitorId, postId], name: "monitorId_postId")
   @@map("hashtag_leads")
 }
 
@@ -545,20 +582,22 @@ model WinningPattern {
 // ─── A/B Tests ──────────────────────────────────────────
 
 model ABTest {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   tenantId    String
   name        String
   hypothesis  String?
   postARef    String
   postBRef    String?
-  status      String   @default("draft")
+  status      String    @default("draft")
   winner      String?
   notes       String?
+  startedAt   DateTime?
+  endedAt     DateTime?
 
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@map("ab_tests")
 }
@@ -566,17 +605,20 @@ model ABTest {
 // ─── Post Approvals ─────────────────────────────────────
 
 model PostApproval {
-  id          String   @id @default(cuid())
-  tenantId    String
-  postId      String
-  token       String   @unique @default(cuid())
-  status      String   @default("pending")
-  requestedAt DateTime @default(now())
-  reviewedAt  DateTime?
-  reviewerNote String?
+  id            String   @id @default(cuid())
+  tenantId      String
+  postId        String   @unique
+  token         String   @unique @default(cuid())
+  status        String   @default("pending")
+  approverEmail String?
+  approverName  String?
+  comment       String?
+  requestedAt   DateTime @default(now())
+  respondedAt   DateTime?
+  expiresAt     DateTime
 
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
-  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@map("post_approvals")
 }
@@ -595,12 +637,12 @@ model SocialLead {
   dealValue      Float?
   fuentePostId   String?
   leadScore      Int       @default(0)
+  scoreReason    String?
   lastActivity   DateTime?
-  notes          String?
 
   tenant         Tenant    @relation(fields: [tenantId], references: [id])
   activities     LeadActivity[]
-  leadNotes      LeadNote[]
+  notes          LeadNote[]
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -612,8 +654,8 @@ model SocialLead {
 model LeadActivity {
   id        String   @id @default(cuid())
   leadId    String
-  type      String
-  note      String?
+  tipo      String
+  detalle   String?
   createdAt DateTime @default(now())
 
   lead      SocialLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -624,7 +666,7 @@ model LeadActivity {
 model LeadNote {
   id        String   @id @default(cuid())
   leadId    String
-  text      String
+  body      String
   createdAt DateTime @default(now())
 
   lead      SocialLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -656,18 +698,32 @@ model Affiliate {
 }
 
 model AffiliateReferral {
-  id          String   @id @default(cuid())
-  affiliateId String
-  amount      Float    @default(0)
-  commission  Float    @default(0)
-  status      String   @default("pending")
-  description String?
+  id            String   @id @default(cuid())
+  affiliateId   String
+  amount        Float    @default(0)
+  commission    Float    @default(0)
+  status        ReferralStatus @default(PENDING)
+  description   String?
 
-  affiliate   Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  referredName  String?
+  referredEmail String?
+  referredPhone String?
+  notes         String?
+  paidAt        DateTime?
 
-  createdAt   DateTime @default(now())
+  affiliate     Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
 
   @@map("affiliate_referrals")
+}
+
+enum ReferralStatus {
+  PENDING
+  CONVERTED
+  APPROVED
+  PAID
+  REJECTED
 }
 
 // ─── Bio Page (Link-in-bio) ──────────────────────────────
@@ -712,19 +768,24 @@ model BioLink {
 // ─── Video Scripts ───────────────────────────────────────
 
 model VideoScript {
-  id        String   @id @default(cuid())
-  tenantId  String
-  title     String?
-  hook      String?
-  script    String?
-  duration  Int?
-  style     String?
-  status    String   @default("draft")
+  id           String   @id @default(cuid())
+  tenantId     String
+  template     String
+  topic        String
+  title        String?
+  hook         String?
+  script       Json?
+  outputUrl    String?
+  thumbnailUrl String?
+  duration     Int?
+  style        String?
+  error        String?
+  status       String   @default("draft")
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("video_scripts")
 }
@@ -739,4 +800,23 @@ model MetaDeletionLog {
   createdAt        DateTime @default(now())
 
   @@map("meta_deletion_logs")
+}
+
+
+model TranscriptInsight {
+  id          String   @id @default(cuid())
+  tenantId    String
+  title       String
+  sourceUrl   String?
+  transcript  String
+  hooks       Json
+  historias   Json
+  frameworks  Json
+  objeciones  Json
+  citas       Json
+  createdAt   DateTime @default(now())
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
 }
