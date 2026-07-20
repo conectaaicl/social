@@ -7,3 +7,4 @@ node_modules/
 .env
 set_password.js
 gen_image.js
+uploads/

@@ -10,6 +10,8 @@ COPY package*.json ./
 COPY prisma ./prisma/
 RUN npm ci --omit=dev
 
+COPY public ./public
+
 # Copy pre-built Next.js output from host
 COPY .next ./.next
 

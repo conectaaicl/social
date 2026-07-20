@@ -5,14 +5,16 @@ export default auth((req) => {
   const { pathname } = req.nextUrl
   const isLoggedIn = !!req.auth
 
-  const publicPaths = ["/sitemap.xml", "/google39b4a51d86750223.html","/auth/login", "/auth/register", "/bio/", "/aprobar/"]
-  const isPublic = publicPaths.some((p) => pathname.startsWith(p))
+  const exactPublic = ["/"]
+  const prefixPublic = ["/sitemap.xml", "/google39b4a51d86750223.html", "/auth/login", "/auth/register", "/bio/", "/aprobar/"]
+
+  const isPublic = exactPublic.includes(pathname) || prefixPublic.some((p) => pathname.startsWith(p))
 
   if (!isLoggedIn && !isPublic) {
     return NextResponse.redirect(new URL("/auth/login", req.url))
   }
 
-  if (isLoggedIn && isPublic) {
+  if (isLoggedIn && pathname === "/") {
     return NextResponse.redirect(new URL("/dashboard", req.url))
   }
 
@@ -20,5 +22,5 @@ export default auth((req) => {
 })
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|uploads).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|manifest.json|sw.js|icon-192.png|icon-512.png|apple-touch-icon.png|uploads).*)"],
 }
