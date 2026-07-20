@@ -461,3 +461,42 @@ export async function analyzeTranscript(params: {
     return { hooks: [], historias: [], frameworks: [], objeciones: [], citas: [] }
   }
 }
+
+// ─── DM mining: extrae objeciones, urgencia y frases reales de conversaciones OSW ──
+export async function analyzeConversations(params: {
+  conversations: { contactName: string; messages: string[] }[]
+  brandVoice: { industry: string; products: string[] }
+  aiConfig?: AIConfig
+}): Promise<{
+  objeciones: string[]
+  urgencia: string[]
+  frasesReales: string[]
+  temasComunes: string[]
+}> {
+  const { conversations, brandVoice, aiConfig } = params
+  const blocks = conversations
+    .map((c, i) => `--- Conversacion ${i + 1} (${c.contactName}) ---\n${c.messages.join("\n").slice(0, 800)}`)
+    .join("\n\n")
+    .slice(0, 16000)
+
+  const text = await llmWithConfig(
+    aiConfig,
+    `Eres un estratega de contenido que analiza conversaciones reales de WhatsApp/DM de clientes de un negocio de ${brandVoice.industry} para sacar insumos de marketing. Respondes SOLO JSON valido, sin texto extra.`,
+    `Analiza estas conversaciones reales entre el negocio y sus clientes/leads:\n\n"""${blocks}"""\n\nExtrae:\n1. objeciones: dudas, resistencias o "peros" reales que ponen los clientes antes de comprar, tal como se expresan\n2. urgencia: senales de urgencia o necesidad real detectadas (ej: "lo necesito para esta semana", motivos de compra urgentes)\n3. frasesReales: frases textuales de clientes (como piden, describen su problema o reaccionan) utiles como copy porque suenan autenticas, no de marketing\n4. temasComunes: preguntas o temas que se repiten en varias conversaciones y que valdria la pena responder en un post o reel\n\nSi no hay suficiente material para alguna categoria, devuelve un arreglo mas corto o vacio en vez de inventar contenido. No inventes citas que no esten en el texto.\n\nResponde SOLO este JSON:\n{\n  "objeciones": ["..."],\n  "urgencia": ["..."],\n  "frasesReales": ["..."],\n  "temasComunes": ["..."]\n}`,
+    2000
+  )
+
+  try {
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error("no JSON")
+    const parsed = JSON.parse(match[0])
+    return {
+      objeciones: Array.isArray(parsed.objeciones) ? parsed.objeciones : [],
+      urgencia: Array.isArray(parsed.urgencia) ? parsed.urgencia : [],
+      frasesReales: Array.isArray(parsed.frasesReales) ? parsed.frasesReales : [],
+      temasComunes: Array.isArray(parsed.temasComunes) ? parsed.temasComunes : [],
+    }
+  } catch {
+    return { objeciones: [], urgencia: [], frasesReales: [], temasComunes: [] }
+  }
+}

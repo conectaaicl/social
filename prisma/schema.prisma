@@ -99,6 +99,7 @@ model Tenant {
   aBTests         ABTest[]
   winningPatterns WinningPattern[]
   transcriptInsights TranscriptInsight[]
+  conversationInsights ConversationInsight[]
   postApprovals   PostApproval[]
   videoScripts    VideoScript[]
 
@@ -817,6 +818,21 @@ model TranscriptInsight {
   createdAt   DateTime @default(now())
 
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+}
+
+model ConversationInsight {
+  id                   String   @id @default(cuid())
+  tenantId             String
+  conversationsScanned Int      @default(0)
+  objeciones           Json
+  urgencia             Json
+  frasesReales         Json
+  temasComunes         Json
+  createdAt            DateTime @default(now())
+
+  tenant               Tenant   @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
 }

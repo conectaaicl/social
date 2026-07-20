@@ -20,6 +20,7 @@ const navItems = [
   { href: "/dashboard/analytics",  label: "Analytics",     icon: BarChart3 },
   { href: "/dashboard/insights",   label: "Insights IA",   icon: Lightbulb },
   { href: "/dashboard/transcripts",label: "Transcripciones", icon: FileText },
+  { href: "/dashboard/dm-insights", label: "Mineria de DMs", icon: MessageCircle },
   { href: "/dashboard/comments",   label: "Comentarios",   icon: MessageCircle },
   { href: "/dashboard/media",      label: "Media",         icon: FileImage },
   { href: "/dashboard/accounts",   label: "Cuentas",       icon: Instagram },
