@@ -34,9 +34,11 @@ export default function CommentsPage() {
 
   async function load() {
     setLoading(true)
-    const res = await fetch("/api/comments")
-    const data = await res.json()
-    setComments(data.comments ?? [])
+    try {
+      const res = await fetch("/api/comments")
+      const data = res.ok ? await res.json() : {}
+      setComments(data.comments ?? [])
+    } catch {}
     setLoading(false)
   }
 

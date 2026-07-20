@@ -64,10 +64,13 @@ export default function CalendarPage() {
         fetch(`/api/calendar/${year}/${month}`),
         fetch("/api/posts?limit=100"),
       ])
-      const sd = await slotsRes.json()
-      const pd = await postsRes.json()
+      const sd = slotsRes.ok ? await slotsRes.json() : {}
+      const pd = postsRes.ok ? await postsRes.json() : {}
       setSlots(sd.slots ?? [])
       setPosts(pd.posts ?? [])
+    } catch {
+      setSlots([])
+      setPosts([])
     } finally {
       setLoading(false)
     }

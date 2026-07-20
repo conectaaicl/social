@@ -73,14 +73,16 @@ export default function AdsPage() {
 
   async function load() {
     setLoading(true)
-    const [camRes, postRes] = await Promise.all([
-      fetch("/api/ads/campaigns"),
-      fetch("/api/posts?status=PUBLISHED&limit=20"),
-    ])
-    const camData = await camRes.json()
-    const postData = await postRes.json()
-    setCampaigns(camData.campaigns ?? [])
-    setPosts(postData.posts ?? [])
+    try {
+      const [camRes, postRes] = await Promise.all([
+        fetch("/api/ads/campaigns"),
+        fetch("/api/posts?status=PUBLISHED&limit=20"),
+      ])
+      const camData = camRes.ok ? await camRes.json() : {}
+      const postData = postRes.ok ? await postRes.json() : {}
+      setCampaigns(camData.campaigns ?? [])
+      setPosts(postData.posts ?? [])
+    } catch {}
     setLoading(false)
   }
 

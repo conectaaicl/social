@@ -150,10 +150,17 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetch("/api/settings/integrations")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status)
+        return r.json()
+      })
       .then((data) => {
         setValues(data.masked ?? {})
         setLoading(false)
+      })
+      .catch(() => {
+        setLoading(false)
+        setError("Sesión expirada — por favor recarga la página e inicia sesión de nuevo.")
       })
   }, [])
 
